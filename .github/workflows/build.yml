@@ -2,7 +2,7 @@ name: Build Gemix APK
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
 
 jobs:
   build:
@@ -16,8 +16,6 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
       - name: Install
         run: npm install
       - name: Sync Capacitor
