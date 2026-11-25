@@ -5,54 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>GEMIX CONNECT</title>
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+<script>eruda.init();</script>
 </head>
 <body>
-
-<!-- PURE METALLIC GOLD ICON SPRITE -->
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-<defs>
-<linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-<stop offset="0%" stop-color="#FFF9C4"/><stop offset="25%" stop-color="#FFD700"/><stop offset="50%" stop-color="#D4AF37"/><stop offset="75%" stop-color="#B8860B"/><stop offset="100%" stop-color="#FFFACD"/>
-</linearGradient>
-<linearGradient id="goldGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
-<stop offset="0%" stop-color="#FFFFFF"/><stop offset="35%" stop-color="#FFE55C"/><stop offset="70%" stop-color="#C9A227"/><stop offset="100%" stop-color="#8A6D1A"/>
-</linearGradient>
-</defs>
-<symbol id="i-home" viewBox="0 0 24 24"><path fill="url(#goldGrad)" d="M12 2.5L2 12.5V21a1 1 0 0 0 1 1h5v-6h8v6h5a1 1 0 0 0 1-1v-8.5L12 2.5zM12 8l1.5 1.5V8h1v2.5L12 9.5 7 13V21H5V13l7-5z"/></symbol>
-<symbol id="i-user" viewBox="0 0 24 24"><path fill="url(#goldGrad)" d="M12 2a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 12c-5 0-8 2.7-8 6v1h16v-1c0-3.3-3-6-8-6z"/></symbol>
-<symbol id="i-group" viewBox="0 0 24 24"><path fill="url(#goldGrad)" d="M9 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8zm9 1a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7zM2 20c0-3 2.5-5.5 7-5.5S16 17 16 20v1H2v-1zm14.2-1.2c.5-.1 1.4-.3 2.3-.3 3 0 5.5 1.8 5.5 4.2V21h-8v-2.2z"/></symbol>
-<symbol id="i-diamond" viewBox="0 0 24 24"><path fill="url(#goldGrad)" d="M7 2h10l5 6-10 14L2 8l5-6zm-2.5 6h15L17 4.5 12 3 7 4.5 4.5 8zm1 2L12 19l5.5-9H5.5z"/></symbol>
-<symbol id="i-cart" viewBox="0 0 24 24"><path fill="url(#goldGrad)" d="M2 3h3l2.6 12.5A2 2 0 0 0 9.6 17h8.9a2 2 0 0 0 2-1.6L22 7H6M9 21a2 2 0 1 0 0 .01M18 21a2 2 0 1 0 0 .01M7 9h11l-1 4H8L7 9z"/></symbol>
-<symbol id="i-lock" viewBox="0 0 24 24"><path fill="url(#goldGrad)" d="M12 2a5 5 0 0 0-5 5v3H6a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 1 1 6 0v3H9zm8 9H7v-7h10v7z"/></symbol>
-<symbol id="i-key" viewBox="0 0 24 24"><path fill="url(#goldGrad)" d="M13 2a6 6 0 0 0-5.8 7.4L2 14.6V19a2 2 0 0 0 2 2h4.4l5.2-5.2A6 6 0 1 0 13 2zm-2 9.2L7.8 14.4 6 12.6l3.2-3.2A4 4 0 1 1 11 11.2zM20 6v2h-2v2h-2v2h-2v-2h2V8h2V6h2z"/></symbol>
-<symbol id="i-close" viewBox="0 0 24 24"><path fill="url(#goldGrad)" d="M6 5l12 14M18 5L6 19" stroke="url(#goldGrad)" stroke-width="2.6" stroke-linecap="round" fill="none"/></symbol>
-<symbol id="i-send" viewBox="0 0 24 24"><path fill="url(#goldGrad)" d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></symbol>
-<symbol id="i-back" viewBox="0 0 24 24"><path fill="url(#goldGrad)" d="M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20v-2z"/></symbol>
-<symbol id="i-copy" viewBox="0 0 24 24"><path fill="url(#goldGrad)" d="M7 3h11a1 1 0 0 1 1 1v13H8a1 1 0 0 1-1-1V3zm-3 4h2v13a1 1 0 0 0 1 1h11v2H6a2 2 0 0 1-2-2V7z"/></symbol>
-<symbol id="i-download" viewBox="0 0 24 24"><path fill="url(#goldGrad)" d="M12 2v11l4-4 1.4 1.4L12 16 6.6 10.4 8 9l4 4V2zM4 20h16v2H4v-2z"/></symbol>
-<symbol id="i-reply" viewBox="0 0 24 24"><path fill="url(#goldGrad)" d="M10 9V5l-7 7 7 7v-4c5 0 8.5 1.6 11 5-1-5-4-8-11-9z"/></symbol>
-<symbol id="i-trash" viewBox="0 0 24 24"><path fill="url(#goldGrad)" d="M4 7h16M9 7V5h6v2m-8 0l1 13h8l1-13M10 11v5M14 11v5"/></symbol>
-<symbol id="i-bell" viewBox="0 0 24 24"><path fill="url(#goldGrad)" d="M12 2a5 5 0 0 0-5 5v5l-2 3h14l-2-3V7a5 5 0 0 0-5-5zm-2 19a2 2 0 0 0 4 0h-4z"/></symbol>
-<symbol id="i-phone" viewBox="0 0 24 24"><path fill="url(#goldGrad)" d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.2.2 2.4.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z"/></symbol>
-<symbol id="i-chat" viewBox="0 0 24 24"><path fill="url(#goldGrad)" d="M12 2C6.5 2 2 5.8 2 10.5c0 2.6 1.5 4.9 3.8 6.4-.1 1.2-.7 2.5-1.3 3.1 1.8-.1 3.7-.9 4.9-2 .8.2 1.7.3 2.6.3 5.5 0 10-3.8 10-8.3S17.5 2 12 2zm-4 7h8v2H8V9zm0 3h5v2H8v-2z"/></symbol>
-<symbol id="i-video" viewBox="0 0 24 24"><path fill="url(#goldGrad)" d="M2 6a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6zm13 3l6-3v12l-6-3v-6z"/></symbol>
-<symbol id="i-attach" viewBox="0 0 24 24"><path fill="url(#goldGrad)" d="M16.5 6.5L7 16a4 4 0 0 0 5.6 5.6l9-9a6 6 0 0 0-8.5-8.5l-9.2 9.2a8 8 0 0 0 11.3 11.3l7.5-7.5-1.4-1.4-7.5 7.5a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9 9a2 2 0 0 1-2.8-2.8L16.5 9l1.4-1.4z"/></symbol>
-<symbol id="i-play" viewBox="0 0 24 24"><path fill="url(#goldGrad)" d="M7 4l13 8-13 8V4z"/></symbol>
-<symbol id="i-mic" viewBox="0 0 24 24"><path fill="url(#goldGrad)" d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3zm-7 9a7 7 0 0 0 14 0h-2a5 5 0 0 1-10 0H5zm7 10v-3h-1v-2h2v2h-1v3z"/></symbol>
-<symbol id="i-phoneoff" viewBox="0 0 24 24"><path fill="url(#goldGrad)" d="M3 3l18 18-1.4 1.4-2.6-2.6A14 14 0 0 1 12 21C7 21 3 13.4 3 4l1.4-1.4L3 3zm6.6 10.8l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.2 0 .4.1.5.2L18.5 16l-1.5 1.5-3.2-3.2 2.2-2.2z"/></symbol>
-<symbol id="i-speaker" viewBox="0 0 24 24"><path fill="url(#goldGrad)" d="M3 10v4h4l5 5V5L7 10H3zm13.5 2a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></symbol>
-<symbol id="i-camera" viewBox="0 0 24 24"><path fill="url(#goldGrad)" d="M4 7h3l2-2h6l2 2h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1zm8 11a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9z"/></symbol>
-<symbol id="i-refresh" viewBox="0 0 24 24"><path fill="url(#goldGrad)" d="M12 4V1L7 6l5 5V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-8z"/></symbol>
-<symbol id="i-pip" viewBox="0 0 24 24"><path fill="url(#goldGrad)" d="M3 4h18a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zm16 3h-6a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1z"/></symbol>
-</svg>
-
 
 <div class="toast-pill" id="toastPill">Copied!</div>
 
 <!-- REAL-TIME INCOMING CALL POPUP -->
 <div class="incoming-call-banner" id="incomingCallBanner">
   <div style="display:flex; align-items:center; gap:12px;">
-    <div class="avatar" id="incomingCallerAvatar" style="width:44px; height:44px;"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-phone"></use></svg></div>
+    <div class="avatar" id="incomingCallerAvatar" style="width:44px; height:44px;">📞</div>
     <div>
       <h4 id="incomingCallerName" style="font-size:15px; color:#222835;">Incoming Call</h4>
       <p id="incomingCallType" style="font-size:12px; color:#4285d4; font-weight:700;">VIP Video Call</p>
@@ -66,9 +29,9 @@
 
 <!-- TOP BAR -->
 <div class="top-bar" id="topBar">
-  <button class="nav-btn active" id="homeBtn" onclick="switchScreen('home-screen', this)"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-home"></use></svg></button>
+  <button class="nav-btn active" id="homeBtn" onclick="switchScreen('home-screen', this)">🏠</button>
   <div style="display:flex; gap:10px;">
-    <button class="nav-btn" id="profileBtn" onclick="switchScreen('profile-screen', this)" title="My Profile"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-user"></use></svg></button>
+    <button class="nav-btn" id="profileBtn" onclick="switchScreen('profile-screen', this)" title="My Profile">👤</button>
     <button class="nav-btn" id="plusBtn" onclick="openAddContactModal()">+</button>
   </div>
 </div>
@@ -77,14 +40,14 @@
 <div class="modal-overlay" id="newUserLoginModal">
   <div class="modal-box">
     <div class="modal-header">
-      <h3><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-diamond"></use></svg> VIP User Login</h3>
-      <button class="cart-badge-icon" id="shopCartBtn" onclick="goToGemixShop()" title="Buy Gemix Number in Shop"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-cart"></use></svg></button>
+      <h3>💎 VIP User Login</h3>
+      <button class="cart-badge-icon" id="shopCartBtn" onclick="goToGemixShop()" title="Buy Gemix Number in Shop">🛒</button>
     </div>
 
     <div class="input-group">
       <label>PROFILE PICTURE</label>
       <div class="avatar-picker-container">
-        <div class="picker-preview" id="pickerPreviewBox"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-user"></use></svg></div>
+        <div class="picker-preview" id="pickerPreviewBox">👤</div>
         <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
           <input type="file" id="loginAvatarInput" style="display:none;" accept="image/*" onchange="previewLoginAvatar(event)">
           <button class="action-icon" style="width:100%; text-align:center;" onclick="document.getElementById('loginAvatarInput').click()">Select from Device</button>
@@ -114,7 +77,7 @@
     <div class="input-group">
       <label>
         <span>GEMIX NUMBER (5 DIGITS)</span>
-        <span style="color:#4285d4; font-size:10px;"><svg class="gold-icon gold-icon-sm" aria-hidden="true"><use href="#i-lock"></use></svg> LOCKED • BUY VIA <svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-cart"></use></svg></span>
+        <span style="color:#4285d4; font-size:10px;">🔒 LOCKED • BUY VIA 🛒</span>
       </label>
       <input type="text" id="loginGemixNum" class="neumo-input locked-field" maxlength="5" readonly tabindex="-1" placeholder="Auto-fills after Shop Activation" onpaste="return false;" ondrop="return false;" onkeydown="return false;">
     </div>
@@ -122,7 +85,7 @@
     <span class="error-msg" id="loginError">Please fill all fields properly!</span>
 
     <button class="save-contact-btn" id="loginSubmitBtn" onclick="completeUserLogin()">Enter Gemix Connect</button>
-<button class="save-contact-btn" id="restoreBtn" onclick="gemixTryRestoreFromLogin()" style="background:#edf1f8; color:#4285d4; margin-top:10px;"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-key"></use></svg>  use Master Key to login</button>
+<button class="save-contact-btn" id="restoreBtn" onclick="gemixTryRestoreFromLogin()" style="background:#edf1f8; color:#4285d4; margin-top:10px;">🔑  use Master Key to login</button>
   </div>
 </div>
 
@@ -131,7 +94,7 @@
   <div class="modal-box">
     <div class="modal-header">
       <h3>Add New Contact</h3>
-      <button class="close-modal" onclick="closeAddContactModal()"><svg class="gold-icon gold-icon-sm" aria-hidden="true"><use href="#i-close"></use></svg></button>
+      <button class="close-modal" onclick="closeAddContactModal()">✕</button>
     </div>
 
     <div class="input-group">
@@ -159,14 +122,14 @@
   <div class="modal-box">
     <div class="modal-header">
       <h3 id="previewModalTitle">Media Preview</h3>
-      <button class="close-modal" onclick="closeMediaPreviewModal()"><svg class="gold-icon gold-icon-sm" aria-hidden="true"><use href="#i-close"></use></svg></button>
+      <button class="close-modal" onclick="closeMediaPreviewModal()">✕</button>
     </div>
 
     <div class="media-preview-stage" id="mediaPreviewStage"></div>
 
     <div style="display:flex; gap:10px; align-items:center;">
       <input type="text" id="mediaCaptionInput" class="neumo-input" style="border-radius:25px; padding:12px 16px;" placeholder="Add a caption..." onkeypress="if(event.key==='Enter') confirmSendMedia()">
-      <button class="send-btn" id="confirmMediaBtn" onclick="confirmSendMedia()" title="Send"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-send"></use></svg></button>
+      <button class="send-btn" id="confirmMediaBtn" onclick="confirmSendMedia()" title="Send">➤</button>
     </div>
   </div>
 </div>
@@ -176,7 +139,7 @@
   <div class="modal-box" style="max-width:460px; padding:16px;">
     <div class="modal-header">
       <h3 id="lightboxTitle" style="font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:80%;">Viewer</h3>
-      <button class="close-modal" onclick="closeLightbox()"><svg class="gold-icon gold-icon-sm" aria-hidden="true"><use href="#i-close"></use></svg></button>
+      <button class="close-modal" onclick="closeLightbox()">✕</button>
     </div>
     <div class="media-preview-stage" id="lightboxStage" style="max-height:70dvh;"></div>
   </div>
@@ -187,25 +150,25 @@
   <div class="modal-box" style="max-width:360px;">
     <div class="modal-header">
       <h3 id="msgActionModalTitle">Message Options</h3>
-      <button class="close-modal" onclick="closeMsgActionModal()"><svg class="gold-icon gold-icon-sm" aria-hidden="true"><use href="#i-close"></use></svg></button>
+      <button class="close-modal" onclick="closeMsgActionModal()">✕</button>
     </div>
 
     <!-- Main Action Buttons -->
     <div id="msgActionMainMenu" style="display:flex; flex-direction:column; gap:11px;">
       <button class="action-sheet-btn" id="copyMsgActionBtn" onclick="copySelectedMessage()">
-        <span><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-copy"></use></svg></span>
+        <span>📋</span>
         <span>Copy Text</span>
       </button>
       <button class="action-sheet-btn" id="downloadMsgActionBtn" onclick="downloadSelectedMedia()">
-        <span><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-download"></use></svg></span>
+        <span>⬇️</span>
         <span>Download File / Media</span>
       </button>
       <button class="action-sheet-btn" onclick="openForwardFriendsList()">
-        <span><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-reply"></use></svg></span>
+        <span>↪️</span>
         <span>Forward / Share to Friends</span>
       </button>
       <button class="action-sheet-btn danger" id="deleteMsgActionBtn" onclick="deleteSelectedMessage()">
-        <span><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-trash"></use></svg></span>
+        <span>🗑️</span>
         <span>Delete Message</span>
       </button>
     </div>
@@ -215,8 +178,8 @@
       <p style="font-size:12px; color:#6c7382; font-weight:600;">Select VIP friends to share this item:</p>
       <div class="share-friends-list" id="shareFriendsListContainer"></div>
       <div style="display:flex; gap:10px;">
-        <button class="action-icon" style="flex:1; padding:12px;" onclick="backToActionMenu()"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-back"></use></svg> Back</button>
-        <button class="save-contact-btn" id="confirmForwardBtn" style="flex:2; margin-top:0; padding:12px;" onclick="executeForwardMessage()">Share Now <svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-send"></use></svg></button>
+        <button class="action-icon" style="flex:1; padding:12px;" onclick="backToActionMenu()">⬅ Back</button>
+        <button class="save-contact-btn" id="confirmForwardBtn" style="flex:2; margin-top:0; padding:12px;" onclick="executeForwardMessage()">Share Now ➤</button>
       </div>
     </div>
   </div>
@@ -243,10 +206,10 @@
       <button class="action-icon" onclick="openLoginModal()">Edit Login</button>
     </h2>
     <div class="profile-card">
-      <div class="profile-avatar-large" id="myProfileAvatarBox"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-user"></use></svg></div>
+      <div class="profile-avatar-large" id="myProfileAvatarBox">👤</div>
       <h3 style="color:#222835;" id="displayProfileName">VIP Member</h3>
       <div style="display:flex; gap:10px; width:100%; margin-top:6px;">
-  <button class="action-icon" style="flex:1; padding:12px;" onclick="openGemixRingtoneSettings()"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-bell"></use></svg> Ringtone Settings</button>
+  <button class="action-icon" style="flex:1; padding:12px;" onclick="openGemixRingtoneSettings()">🔔 Ringtone Settings</button>
 </div>
       <div class="profile-details-list">
         <div class="detail-row">
@@ -270,7 +233,7 @@
     <h2 class="screen-title">Calls</h2>
     <div class="list-area" id="callList">
       <div class="empty-state" id="callEmptyState">
-        <div class="empty-icon"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-phone"></use></svg></div>
+        <div class="empty-icon">📞</div>
         <p style="font-size:14px; font-weight:600; color:#222835;">No Contacts Yet</p>
         <p style="font-size:12px;">Tap + at the top right to add a VIP contact</p>
       </div>
@@ -282,7 +245,7 @@
     <h2 class="screen-title">Chats</h2>
     <div class="list-area" id="chatList">
       <div class="empty-state" id="chatEmptyState">
-        <div class="empty-icon"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-chat"></use></svg></div>
+        <div class="empty-icon">💬</div>
         <p style="font-size:14px; font-weight:600; color:#222835;">No Chats Yet</p>
         <p style="font-size:12px;">Add a VIP contact using + to start messaging</p>
       </div>
@@ -294,7 +257,7 @@
     <h2 class="screen-title">Video Call</h2>
     <div class="list-area" id="videoList">
       <div class="empty-state" id="videoEmptyState">
-        <div class="empty-icon"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-video"></use></svg></div>
+        <div class="empty-icon">🎥</div>
         <p style="font-size:14px; font-weight:600; color:#222835;">No Video Contacts</p>
         <p style="font-size:12px;">Add contacts via + to start a private PiP video call</p>
       </div>
@@ -305,20 +268,20 @@
   <div id="group-screen" class="screen">
     <div class="screen-title">
       <span>Group</span>
-      <button class="action-icon" id="groupToggleBtn" onclick="toggleGroupMode()"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-group"></use></svg> Group Conversation</button>
+      <button class="action-icon" id="groupToggleBtn" onclick="toggleGroupMode()">👥 Group Conversation</button>
     </div>
 
     <div class="group-action-bar" id="groupActionBar">
       <span style="font-size:13px; font-weight:700; color:#4285d4;" id="selectedCountText">0 selected</span>
       <div style="display:flex; gap:8px;">
-        <button class="action-icon" style="background:#4285d4; color:#fff;" onclick="triggerGroupCall('voice')"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-phone"></use></svg> Voice Call</button>
-        <button class="action-icon" style="background:#4285d4; color:#fff;" onclick="triggerGroupCall('video')"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-video"></use></svg> Video Call</button>
+        <button class="action-icon" style="background:#4285d4; color:#fff;" onclick="triggerGroupCall('voice')">📞 Voice Call</button>
+        <button class="action-icon" style="background:#4285d4; color:#fff;" onclick="triggerGroupCall('video')">🎥 Video Call</button>
       </div>
     </div>
 
     <div class="list-area" id="groupListArea">
       <div class="empty-state" id="groupEmptyState">
-        <div class="empty-icon"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-group"></use></svg></div>
+        <div class="empty-icon">👥</div>
         <p style="font-size:14px; font-weight:600; color:#222835;">No Contacts Added</p>
         <p style="font-size:12px;">Add VIP contacts to create a Group Conversation</p>
       </div>
@@ -328,21 +291,21 @@
   <!-- SUB-SCREEN A: FULL-SCREEN NATIVE CHAT ROOM -->
   <div id="active-chat-screen" class="screen">
     <div class="chat-header">
-      <button class="back-btn" onclick="closeSubScreen('chat-screen')"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-back"></use></svg></button>
+      <button class="back-btn" onclick="closeSubScreen('chat-screen')">⬅</button>
       <div class="avatar" id="chatAvatar" style="width:42px; height:42px; font-size:16px;">V</div>
       <div style="flex:1;">
       <h4 style="font-size:16px; color:#222835;" id="chatUserName">VIP Contact</h4>
       <p id="chatUserStatus" style="font-size:11px; color:#6c7382; font-weight:600; margin-top:2px;">Last seen recently</p>
     </div>
-      <button class="back-btn" onclick="initiateWebRTCCall(activeChatPeer.name, activeChatPeer.gemixId, true)" title="Video Call" style="margin-right:4px;"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-video"></use></svg></button>
-      <button class="back-btn" onclick="initiateWebRTCCall(activeChatPeer.name, activeChatPeer.gemixId, false)" title="Voice Call"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-phone"></use></svg></button>
+      <button class="back-btn" onclick="initiateWebRTCCall(activeChatPeer.name, activeChatPeer.gemixId, true)" title="Video Call" style="margin-right:4px;">🎥</button>
+      <button class="back-btn" onclick="initiateWebRTCCall(activeChatPeer.name, activeChatPeer.gemixId, false)" title="Voice Call">📞</button>
     </div>
 
     <div class="messages-box" id="messagesBox"></div>
     <input type="file" id="localFileInput" style="display:none;" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.zip,.xls,.xlsx,.ppt,.pptx" onchange="openMediaPreviewModal(event)">
 
     <div class="chat-input-bar">
-      <button class="icon-circle-btn" id="attachBtn" onclick="document.getElementById('localFileInput').click()" title="Attach Media & Docs"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-attach"></use></svg></button>
+      <button class="icon-circle-btn" id="attachBtn" onclick="document.getElementById('localFileInput').click()" title="Attach Media & Docs">📎</button>
       <input type="text" id="msgInput" class="neumo-input" style="border-radius:25px; padding:12px 16px;" placeholder="Type message..." oninput="toggleActionBtn()" onkeypress="if(event.key==='Enter') sendMessage()">
       
       <!-- VOICE NOTE PREVIEW BAR -->
@@ -353,7 +316,7 @@
           <span id="recTimer" style="margin-left:8px; font-weight:600;">0:00</span>
         </div>
         <div id="previewAudioControls" style="display:none; align-items:center; gap:8px; flex:1; padding:0 6px;">
-          <button id="previewPlayBtn" onclick="togglePreviewPlayback()"><svg class="gold-icon gold-icon-sm" aria-hidden="true"><use href="#i-play"></use></svg></button>
+          <button id="previewPlayBtn" onclick="togglePreviewPlayback()">▶</button>
           <span id="previewStatus" style="font-size:11px; color:#555b68; font-weight:600;">Tap to preview</span>
         </div>
         <div style="display:flex; gap:10px; align-items:center;">
@@ -361,7 +324,7 @@
         </div>
       </div>
 
-      <button class="send-btn" id="mainActionBtn" onclick="handleMainAction()"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-mic"></use></svg></button>
+      <button class="send-btn" id="mainActionBtn" onclick="handleMainAction()">🎙️</button>
     </div>
   </div>
 
@@ -381,15 +344,15 @@
 
       <div class="audio-call-controls">
         <div class="btn-wrap">
-          <button class="vid-neumo-btn" id="voiceMuteBtn" onclick="toggleAudio()" title="Mute"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-mic"></use></svg></button>
+          <button class="vid-neumo-btn" id="voiceMuteBtn" onclick="toggleAudio()" title="Mute">🎤</button>
           <div class="btn-label">Mute</div>
         </div>
         <div class="btn-wrap">
-          <button class="vid-end-neumo-btn" onclick="endWebRTCCall('call-screen')" title="End Call"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-phoneoff"></use></svg></button>
+          <button class="vid-end-neumo-btn" onclick="endWebRTCCall('call-screen')" title="End Call">📵</button>
           <div class="btn-label" style="color:#ff4b5c;">End</div>
         </div>
         <div class="btn-wrap">
-          <button class="vid-neumo-btn" onclick="this.classList.toggle('active')" title="Speaker"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-speaker"></use></svg></button>
+          <button class="vid-neumo-btn" onclick="this.classList.toggle('active')" title="Speaker">🔊</button>
           <div class="btn-label">Speaker</div>
         </div>
       </div>
@@ -417,27 +380,27 @@
 
       <div class="neumo-video-controls">
         <div class="btn-wrap">
-          <button class="vid-neumo-btn" id="micToggleBtn" onclick="toggleAudio()" title="Mute Mic"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-mic"></use></svg></button>
+          <button class="vid-neumo-btn" id="micToggleBtn" onclick="toggleAudio()" title="Mute Mic">🎤</button>
           <div class="btn-label" id="micLabel">Mute</div>
         </div>
 
         <div class="btn-wrap">
-          <button class="vid-neumo-btn" id="camToggleBtn" onclick="toggleVideo()" title="Camera Off"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-camera"></use></svg></button>
+          <button class="vid-neumo-btn" id="camToggleBtn" onclick="toggleVideo()" title="Camera Off">📷</button>
           <div class="btn-label" id="camLabel">Cam Off</div>
         </div>
 
         <div class="btn-wrap">
-          <button class="vid-end-neumo-btn" onclick="endWebRTCCall('video-screen')" title="End Call"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-phoneoff"></use></svg></button>
+          <button class="vid-end-neumo-btn" onclick="endWebRTCCall('video-screen')" title="End Call">📵</button>
           <div class="btn-label" style="color:#ff4b5c;">End</div>
         </div>
 
         <div class="btn-wrap">
-          <button class="vid-neumo-btn" onclick="switchCamera()" title="Flip Camera"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-refresh"></use></svg></button>
+          <button class="vid-neumo-btn" onclick="switchCamera()" title="Flip Camera">🔄</button>
           <div class="btn-label">Flip</div>
         </div>
 
         <div class="btn-wrap">
-          <button class="vid-neumo-btn" onclick="toggleBrowserPiP()" title="Floating PIP Window"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-pip"></use></svg></button>
+          <button class="vid-neumo-btn" onclick="toggleBrowserPiP()" title="Floating PIP Window">🔲</button>
           <div class="btn-label">PiP</div>
         </div>
       </div>
@@ -450,19 +413,19 @@
 <!-- BOTTOM FOUR BUTTONS -->
 <div class="button-row" id="bottomNav">
   <div class="btn-wrap" id="tab-call" onclick="switchScreen('call-screen', this)">
-    <button class="neumo-btn"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-phone"></use></svg></button>
+    <button class="neumo-btn">📞</button>
     <div class="btn-label">Call</div>
   </div>
   <div class="btn-wrap" id="tab-chat" onclick="switchScreen('chat-screen', this)">
-    <button class="neumo-btn"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-chat"></use></svg></button>
+    <button class="neumo-btn">💬</button>
     <div class="btn-label">Chat</div>
   </div>
   <div class="btn-wrap" id="tab-video" onclick="switchScreen('video-screen', this)">
-    <button class="neumo-btn"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-video"></use></svg></button>
+    <button class="neumo-btn">🎥</button>
     <div class="btn-label">Video</div>
   </div>
   <div class="btn-wrap" id="tab-group" onclick="switchScreen('group-screen', this)">
-    <button class="neumo-btn"><svg class="gold-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><use href="#i-group"></use></svg></button>
+    <button class="neumo-btn">👥</button>
     <div class="btn-label">Group</div>
   </div>
 </div>

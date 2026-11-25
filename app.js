@@ -29,6 +29,7 @@ let unsubscribeChatListener = null;
 let unsubscribeIncomingCall = null;
 let callStateUnsubscribe = null;
 let unsubscribeLicenseListener = null;
+let watchedLicenseSuffix = "";
 
 // Long-Press Message Cache & Selection
 let currentMessagesMap = {};
@@ -65,6 +66,7 @@ let isGroupSelectionMode = false;
 
 function showToast(msg) {
   const pill = document.getElementById("toastPill");
+  if (!pill) return;
   pill.innerText = msg;
   pill.style.display = "block";
   setTimeout(() => { pill.style.display = "none"; }, 2200);
@@ -72,71 +74,159 @@ function showToast(msg) {
 
 
 // ============ PHASE 1: GEMIX SOUNDS + ONLINE PRESENCE ============
-let gemixRingtoneAudio=null; let gemixCallerTuneAudio=null; let gemixAudioCtx=null;
-function gemixGetSoundFile(kind){
-  if(kind==="ringtone"){ const c=localStorage.getItem("gemix_custom_ringtone"); if(c) return c; return "gemix-ringtone.wav"; }
-  if(kind==="caller") return "gemix-caller-tune.wav";
+let gemixRingtoneAudio = null;
+let gemixCallerTuneAudio = null;
+let gemixAudioCtx = null;
+
+function gemixGetSoundFile(kind) {
+  if (kind === "ringtone") {
+    const c = localStorage.getItem("gemix_custom_ringtone");
+    if (c) return c;
+    return "gemix-ringtone.wav";
+  }
+  if (kind === "caller") return "gemix-caller-tune.wav";
   return "gemix-notification.wav";
 }
-function gemixPlayTone(kind, loop){
-  try{ const a=new Audio(gemixGetSoundFile(kind)); a.loop=!!loop; a.volume=0.9; a.play().catch(()=>{ window.playGemixSynthTone(kind); }); return a; }
-  catch(e){ window.playGemixSynthTone(kind); return null; }
+
+function gemixPlayTone(kind, loop) {
+  try {
+    const a = new Audio(gemixGetSoundFile(kind));
+    a.loop = !!loop;
+    a.volume = 0.9;
+    a.play().catch(() => { window.playGemixSynthTone(kind); });
+    return a;
+  } catch (e) {
+    window.playGemixSynthTone(kind);
+    return null;
+  }
 }
-window.playGemixRingtone=function(){ if(gemixRingtoneAudio) gemixRingtoneAudio.pause(); gemixRingtoneAudio=gemixPlayTone("ringtone",true); };
-window.stopGemixRingtone=function(){ if(gemixRingtoneAudio){ gemixRingtoneAudio.pause(); gemixRingtoneAudio.currentTime=0; gemixRingtoneAudio=null; } };
-window.playGemixNotification=function(){ gemixPlayTone("notification",false); };
-window.playGemixCallerTune=function(){ if(gemixCallerTuneAudio) gemixCallerTuneAudio.pause(); gemixCallerTuneAudio=gemixPlayTone("caller",true); };
-window.stopGemixCallerTune=function(){ if(gemixCallerTuneAudio){ gemixCallerTuneAudio.pause(); gemixCallerTuneAudio.currentTime=0; gemixCallerTuneAudio=null; } };
-window.setGemixCustomRingtoneFromFile=async function(event){
-  const file=event&&event.target&&event.target.files?event.target.files[0]:null; if(!file) return;
-  const dataUrl=await fileToBase64(file);
-  localStorage.setItem("gemix_custom_ringtone",dataUrl); localStorage.setItem("gemix_custom_ringtone_name",file.name);
+
+window.playGemixRingtone = function () {
+  if (gemixRingtoneAudio) gemixRingtoneAudio.pause();
+  gemixRingtoneAudio = gemixPlayTone("ringtone", true);
+};
+window.stopGemixRingtone = function () {
+  if (gemixRingtoneAudio) {
+    gemixRingtoneAudio.pause();
+    gemixRingtoneAudio.currentTime = 0;
+    gemixRingtoneAudio = null;
+  }
+};
+window.playGemixNotification = function () { gemixPlayTone("notification", false); };
+window.playGemixCallerTune = function () {
+  if (gemixCallerTuneAudio) gemixCallerTuneAudio.pause();
+  gemixCallerTuneAudio = gemixPlayTone("caller", true);
+};
+window.stopGemixCallerTune = function () {
+  if (gemixCallerTuneAudio) {
+    gemixCallerTuneAudio.pause();
+    gemixCallerTuneAudio.currentTime = 0;
+    gemixCallerTuneAudio = null;
+  }
+};
+window.setGemixCustomRingtoneFromFile = async function (event) {
+  const file = event && event.target && event.target.files ? event.target.files[0] : null;
+  if (!file) return;
+  const dataUrl = await fileToBase64(file);
+  localStorage.setItem("gemix_custom_ringtone", dataUrl);
+  localStorage.setItem("gemix_custom_ringtone_name", file.name);
   showToast("Custom Ringtone Saved!");
 };
-window.clearGemixCustomRingtone=function(){ localStorage.removeItem("gemix_custom_ringtone"); localStorage.removeItem("gemix_custom_ringtone_name"); showToast("Back to Gemix Ringtone"); };
-window.playGemixSynthTone=function(kind){
-  try{
-    if(!gemixAudioCtx) gemixAudioCtx=new (window.AudioContext||window.webkitAudioContext)();
-    const ctx=gemixAudioCtx; const now=ctx.currentTime;
-    const notes=kind==="notification"?[880,1320]:kind==="caller"?[523.25,783.99,1046.5,1567.98]:[659.25,987.77,1318.51,1975.53];
-    notes.forEach((freq,i)=>{ const o=ctx.createOscillator(); const g=ctx.createGain(); o.type="sine"; o.frequency.value=freq; g.gain.setValueAtTime(0.0001,now+i*0.18); g.gain.exponentialRampToValueAtTime(0.25,now+i*0.18+0.02); g.gain.exponentialRampToValueAtTime(0.0001,now+i*0.18+0.35); o.connect(g); g.connect(ctx.destination); o.start(now+i*0.18); o.stop(now+i*0.18+0.4); });
-  }catch(e){}
+window.clearGemixCustomRingtone = function () {
+  localStorage.removeItem("gemix_custom_ringtone");
+  localStorage.removeItem("gemix_custom_ringtone_name");
+  showToast("Back to Gemix Ringtone");
 };
-let presenceHeartbeat=null; let presenceUnsubscribes={};
-function gemixFormatLastSeen(ts){
-  if(!ts) return "Last seen recently";
-  try{ const d=ts.toDate?ts.toDate():new Date(ts); const today=new Date(); const isToday=d.toDateString()===today.toDateString(); const timeStr=d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); if(isToday) return "Last seen Today "+timeStr; return "Last seen "+d.toLocaleDateString()+" "+timeStr; }catch(e){ return "Last seen recently"; }
+window.playGemixSynthTone = function (kind) {
+  try {
+    if (!gemixAudioCtx) gemixAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = gemixAudioCtx;
+    const now = ctx.currentTime;
+    const notes = kind === "notification"
+      ? [880, 1320]
+      : kind === "caller"
+        ? [523.25, 783.99, 1046.5, 1567.98]
+        : [659.25, 987.77, 1318.51, 1975.53];
+    notes.forEach((freq, i) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "sine";
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, now + i * 0.18);
+      g.gain.exponentialRampToValueAtTime(0.25, now + i * 0.18 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.18 + 0.35);
+      o.connect(g);
+      g.connect(ctx.destination);
+      o.start(now + i * 0.18);
+      o.stop(now + i * 0.18 + 0.4);
+    });
+  } catch (e) {}
+};
+
+let presenceHeartbeat = null;
+let presenceUnsubscribes = {};
+
+function gemixFormatLastSeen(ts) {
+  if (!ts) return "Last seen recently";
+  try {
+    const d = ts.toDate ? ts.toDate() : new Date(ts);
+    const today = new Date();
+    const isToday = d.toDateString() === today.toDateString();
+    const timeStr = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    if (isToday) return "Last seen Today " + timeStr;
+    return "Last seen " + d.toLocaleDateString() + " " + timeStr;
+  } catch (e) {
+    return "Last seen recently";
+  }
 }
-async function gemixSetMyPresence(isOnline){
-  if(!myProfile||!myProfile.gemixNum) return;
-  try{ await setDoc(doc(db,"users",myProfile.gemixNum),{isOnline:isOnline,lastSeen:serverTimestamp(),inGemixApp:isOnline},{merge:true}); }catch(e){}
+
+async function gemixSetMyPresence(isOnline) {
+  if (!myProfile || !myProfile.gemixNum) return;
+  try {
+    await setDoc(doc(db, "users", myProfile.gemixNum), {
+      isOnline: isOnline,
+      lastSeen: serverTimestamp(),
+      inGemixApp: isOnline
+    }, { merge: true });
+  } catch (e) {}
 }
-window.startGemixPresence=function(){
+
+window.startGemixPresence = function () {
   gemixSetMyPresence(true);
-  if(presenceHeartbeat) clearInterval(presenceHeartbeat);
-  presenceHeartbeat=setInterval(()=>gemixSetMyPresence(true),30000);
-  document.addEventListener("visibilitychange",()=>{ if(document.hidden) gemixSetMyPresence(false); else gemixSetMyPresence(true); });
-  window.addEventListener("beforeunload",()=>{ gemixSetMyPresence(false); });
+  if (presenceHeartbeat) clearInterval(presenceHeartbeat);
+  presenceHeartbeat = setInterval(() => gemixSetMyPresence(true), 30000);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) gemixSetMyPresence(false);
+    else gemixSetMyPresence(true);
+  });
+  window.addEventListener("beforeunload", () => { gemixSetMyPresence(false); });
 };
-window.listenToPeerPresence=function(peerGemixId){
-  if(!peerGemixId) return;
-  if(presenceUnsubscribes[peerGemixId]) presenceUnsubscribes[peerGemixId]();
-  presenceUnsubscribes[peerGemixId]=onSnapshot(doc(db,"users",peerGemixId),(snap)=>{
-    if(!snap.exists()) return; const data=snap.data();
-    const el=document.getElementById("chatUserStatus");
-    if(el){ el.innerText=data.isOnline?"In Gemix App":gemixFormatLastSeen(data.lastSeen); el.style.color=data.isOnline?"#2ecc71":"#6c7382"; }
-    document.querySelectorAll(`[data-gemixid="${peerGemixId}"] .gemix-online-dot`).forEach((dot)=>{ dot.style.background=data.isOnline?"#2ecc71":"#c8ced8"; });
+
+window.listenToPeerPresence = function (peerGemixId) {
+  if (!peerGemixId) return;
+  if (presenceUnsubscribes[peerGemixId]) presenceUnsubscribes[peerGemixId]();
+  presenceUnsubscribes[peerGemixId] = onSnapshot(doc(db, "users", peerGemixId), (snap) => {
+    if (!snap.exists()) return;
+    const data = snap.data();
+    const el = document.getElementById("chatUserStatus");
+    if (el) {
+      el.innerText = data.isOnline ? "In Gemix App" : gemixFormatLastSeen(data.lastSeen);
+      el.style.color = data.isOnline ? "#2ecc71" : "#6c7382";
+    }
+    document.querySelectorAll(`[data-gemixid="${peerGemixId}"] .gemix-online-dot`).forEach((dot) => {
+      dot.style.background = data.isOnline ? "#2ecc71" : "#c8ced8";
+    });
   });
 };
 // ============ END PHASE 1 ============
 
 
 // ============ PHASE 2: CALL SCREEN + PROXIMITY SENSOR + CUSTOM RINGTONE SETTINGS ============
-// CSS inject - Call Screen + Proximity black overlay + Ringtone modal
-(function(){
-  if(document.getElementById("gemixPhase2Style")) return;
-  const st=document.createElement("style"); st.id="gemixPhase2Style";
-  st.textContent=`
+(function () {
+  if (document.getElementById("gemixPhase2Style")) return;
+  const st = document.createElement("style");
+  st.id = "gemixPhase2Style";
+  st.textContent = `
   .gemix-call-screen{position:fixed;inset:0;z-index:999;background:linear-gradient(180deg,#0b1226,#16244d);display:none;flex-direction:column;align-items:center;justify-content:space-between;padding:48px 24px 36px;color:#fff;font-family:sans-serif}
   .gemix-call-screen.show{display:flex}
   .gemix-call-avatar{width:120px;height:120px;border-radius:50%;background:#edf1f8;color:#4285d4;display:grid;place-items:center;font-size:44px;font-weight:800;box-shadow:0 0 0 8px rgba(66,133,212,.25),0 0 40px rgba(66,133,212,.6);animation:gemixPulse 1.6s infinite}
@@ -149,104 +239,86 @@ window.listenToPeerPresence=function(peerGemixId){
   .gemix-ringtone-box{background:#edf1f8;width:100%;max-width:420px;border-radius:22px 22px 0 0;padding:20px}
   `;
   document.head.appendChild(st);
-  // Proximity black overlay element
-  if(!document.getElementById("gemixProximityOverlay")){
-    const o=document.createElement("div"); o.id="gemixProximityOverlay"; o.className="gemix-proximity-overlay"; document.body.appendChild(o);
+  if (!document.getElementById("gemixProximityOverlay")) {
+    const o = document.createElement("div");
+    o.id = "gemixProximityOverlay";
+    o.className = "gemix-proximity-overlay";
+    document.body.appendChild(o);
   }
 })();
 
-// ---- CALL SCREEN (WhatsApp maari full screen) ----
-window.showGemixCallScreen=function(callerName, isVideo, isIncoming){
-  let el=document.getElementById("gemixCallScreen");
-  if(!el){
-    el=document.createElement("div"); el.id="gemixCallScreen"; el.className="gemix-call-screen";
-    el.innerHTML=`
-      <div style="text-align:center">
-        <div style="font-size:12px;letter-spacing:3px;opacity:.7">GEMIX CONNECT</div>
-        <div style="font-size:26px;font-weight:800;margin-top:14px" id="gemixCallScreenName">VIP Contact</div>
-        <div id="gemixCallScreenStatus" style="font-size:13px;color:#7dd3ff;margin-top:6px">Incoming Call...</div>
-      </div>
-      <div class="gemix-call-avatar" id="gemixCallScreenAvatar">G</div>
-      <div style="display:flex;gap:18px;justify-content:center;width:100%">
-        <button class="gemix-call-btn" style="background:#ff4b5c;color:#fff" onclick="gemixDeclineFromCallScreen()">📵</button>
-        <button class="gemix-call-btn" style="background:#2ecc71;color:#fff" onclick="gemixAcceptFromCallScreen()">📞</button>
-      </div>`;
-    document.body.appendChild(el);
-  }
-  const nameEl=document.getElementById("gemixCallScreenName");
-  const statusEl=document.getElementById("gemixCallScreenStatus");
-  const avEl=document.getElementById("gemixCallScreenAvatar");
-  if(nameEl) nameEl.innerText=callerName||"VIP Contact";
-  if(statusEl) statusEl.innerText=isIncoming?(isVideo?"Incoming Video Call...":"Incoming Voice Call..."):(isVideo?"Calling Video...":"Calling Voice...");
-  if(avEl) avEl.innerText=(callerName||"G").charAt(0).toUpperCase();
-  el.classList.add("show");
+window.hideGemixCallScreen = function () {
+  const el = document.getElementById("gemixCallScreen");
+  if (el) el.classList.remove("show");
 };
-window.hideGemixCallScreen=function(){ const el=document.getElementById("gemixCallScreen"); if(el) el.classList.remove("show"); };
-window.gemixAcceptFromCallScreen=function(){
+window.gemixAcceptFromCallScreen = function () {
   window.hideGemixCallScreen();
-  if(typeof window.acceptIncomingCall==="function") window.acceptIncomingCall();
+  if (typeof window.acceptIncomingCall === "function") window.acceptIncomingCall();
 };
-window.gemixDeclineFromCallScreen=function(){
+window.gemixDeclineFromCallScreen = function () {
   window.hideGemixCallScreen();
-  if(typeof window.declineIncomingCall==="function") window.declineIncomingCall();
+  if (typeof window.declineIncomingCall === "function") window.declineIncomingCall();
 };
 
 // ---- PROXIMITY SENSOR ----
-let gemixProximitySensor=null; let gemixProximityActive=false;
-window.startGemixProximitySensor=function(){
-  // Native (Capacitor) la iruntha, native plugin than use aagum - ithu PWA fallback
-  try{
-    if("ProximitySensor" in window){
-      gemixProximitySensor=new ProximitySensor({frequency:5});
-      gemixProximitySensor.addEventListener("reading",()=>{
-        const near=gemixProximitySensor.near;
-        const ov=document.getElementById("gemixProximityOverlay");
-        if(ov) ov.classList.toggle("on", !!near);
+let gemixProximitySensor = null;
+let gemixProximityActive = false;
+
+window.startGemixProximitySensor = function () {
+  try {
+    if ("ProximitySensor" in window) {
+      gemixProximitySensor = new ProximitySensor({ frequency: 5 });
+      gemixProximitySensor.addEventListener("reading", () => {
+        const near = gemixProximitySensor.near;
+        const ov = document.getElementById("gemixProximityOverlay");
+        if (ov) ov.classList.toggle("on", !!near);
       });
       gemixProximitySensor.start();
-      gemixProximityActive=true;
+      gemixProximityActive = true;
       return;
     }
-  }catch(e){}
-  // Fallback: DeviceProximityEvent (old Android) / touch fallback
-  try{
-    if("ondeviceproximity" in window){
-      window.addEventListener("deviceproximity", (e)=>{
-        const ov=document.getElementById("gemixProximityOverlay");
-        if(ov) ov.classList.toggle("on", e.near);
+  } catch (e) {}
+  try {
+    if ("ondeviceproximity" in window) {
+      window.addEventListener("deviceproximity", (e) => {
+        const ov = document.getElementById("gemixProximityOverlay");
+        if (ov) ov.classList.toggle("on", e.near);
       });
-      gemixProximityActive=true;
+      gemixProximityActive = true;
     }
-  }catch(e){}
-  // Note: iOS / Chrome PWA la ProximitySensor support illa - Native la 100% work aagum.
-  // Ippo test ku: call screen la kaiya vecha maari, screen ah 2 sec ku black aakura demo function ready
+  } catch (e) {}
 };
-window.stopGemixProximitySensor=function(){
-  try{ if(gemixProximitySensor){ gemixProximitySensor.stop(); gemixProximitySensor=null; } }catch(e){}
-  const ov=document.getElementById("gemixProximityOverlay");
-  if(ov) ov.classList.remove("on");
-  gemixProximityActive=false;
+
+window.stopGemixProximitySensor = function () {
+  try {
+    if (gemixProximitySensor) {
+      gemixProximitySensor.stop();
+      gemixProximitySensor = null;
+    }
+  } catch (e) {}
+  const ov = document.getElementById("gemixProximityOverlay");
+  if (ov) ov.classList.remove("on");
+  gemixProximityActive = false;
 };
-// NATIVE PROXIMITY - 100% Working (Capacitor Native App ku)
-// PWA la ProximitySensor illana kooda, Native la Capacitor plugin vazhiya work aagum.
-// Native side la: Proximity sensor near -> window.dispatchEvent(new CustomEvent('gemix-proximity', {detail:{near:true}}))
-// Neenga itha than use pannanum, test button thevai illa.
-window.addEventListener("gemix-proximity", (e)=>{
+
+window.addEventListener("gemix-proximity", (e) => {
   const near = e.detail && e.detail.near;
-  const ov=document.getElementById("gemixProximityOverlay");
-  if(ov) ov.classList.toggle("on", !!near);
+  const ov = document.getElementById("gemixProximityOverlay");
+  if (ov) ov.classList.toggle("on", !!near);
 });
-window.gemixSetProximityNative=function(near){
-  const ov=document.getElementById("gemixProximityOverlay");
-  if(ov) ov.classList.toggle("on", !!near);
+window.gemixSetProximityNative = function (near) {
+  const ov = document.getElementById("gemixProximityOverlay");
+  if (ov) ov.classList.toggle("on", !!near);
 };
 
 // ---- CUSTOM RINGTONE SETTINGS UI ----
-window.openGemixRingtoneSettings=function(){
-  let m=document.getElementById("gemixRingtoneModal");
-  if(!m){
-    m=document.createElement("div"); m.id="gemixRingtoneModal"; m.className="gemix-ringtone-modal";
-    m.innerHTML=`
+window.openGemixRingtoneSettings = function () {
+  let m = document.getElementById("gemixRingtoneModal");
+  if (!m) {
+    m = document.createElement("div");
+    m.id = "gemixRingtoneModal";
+    m.className = "gemix-ringtone-modal";
+    m.innerHTML = `
       <div class="gemix-ringtone-box">
         <div style="display:flex;justify-content:space-between;align-items:center"><h3 style="color:#222835">🔔 Ringtone Settings</h3><button onclick="closeGemixRingtoneSettings()" style="border:none;background:none;font-size:18px;cursor:pointer">✕</button></div>
         <p id="gemixCurrentRingtoneText" style="font-size:12px;color:#6c7382;margin:10px 0">Current: Gemix Ringtone (Futuristic)</p>
@@ -256,25 +328,30 @@ window.openGemixRingtoneSettings=function(){
         <button onclick="if(typeof window.clearGemixCustomRingtone==='function') window.clearGemixCustomRingtone(); updateGemixRingtoneLabel();" style="width:100%;padding:14px;border-radius:14px;border:none;background:#edf1f8;font-weight:700;cursor:pointer">↩ Back to Gemix Ringtone</button>
       </div>`;
     document.body.appendChild(m);
-    m.addEventListener("click",(e)=>{ if(e.target===m) closeGemixRingtoneSettings(); });
+    m.addEventListener("click", (e) => { if (e.target === m) closeGemixRingtoneSettings(); });
   }
-  m.classList.add("show"); updateGemixRingtoneLabel();
+  m.classList.add("show");
+  updateGemixRingtoneLabel();
 };
-window.closeGemixRingtoneSettings=function(){ const m=document.getElementById("gemixRingtoneModal"); if(m) m.classList.remove("show"); };
-window.updateGemixRingtoneLabel=function(){
-  const el=document.getElementById("gemixCurrentRingtoneText");
-  if(!el) return;
-  const name=localStorage.getItem("gemix_custom_ringtone_name");
-  el.innerText=name?("Current: Custom - "+name):"Current: Gemix Ringtone (Futuristic)";
+window.closeGemixRingtoneSettings = function () {
+  const m = document.getElementById("gemixRingtoneModal");
+  if (m) m.classList.remove("show");
+};
+window.updateGemixRingtoneLabel = function () {
+  const el = document.getElementById("gemixCurrentRingtoneText");
+  if (!el) return;
+  const name = localStorage.getItem("gemix_custom_ringtone_name");
+  el.innerText = name ? ("Current: Custom - " + name) : "Current: Gemix Ringtone (Futuristic)";
 };
 // ============ END PHASE 2 ============
 
 
 // ============ PHASE 3: GROUP VIDEO AUTO-ADJUST + MASTER KEY RESTORE ============
-(function(){
-  if(document.getElementById("gemixPhase3Style")) return;
-  const st=document.createElement("style"); st.id="gemixPhase3Style";
-  st.textContent=`
+(function () {
+  if (document.getElementById("gemixPhase3Style")) return;
+  const st = document.createElement("style");
+  st.id = "gemixPhase3Style";
+  st.textContent = `
   .gemix-group-video-grid{display:grid;gap:10px;width:100%;height:100%;padding:10px;box-sizing:border-box;grid-template-columns:1fr}
   .gemix-group-video-grid[data-count="1"]{grid-template-columns:1fr}
   .gemix-group-video-grid[data-count="2"]{grid-template-columns:1fr 1fr}
@@ -293,77 +370,198 @@ window.updateGemixRingtoneLabel=function(){
   `;
   document.head.appendChild(st);
 })();
-window.gemixLayoutGroupVideo=function(containerId){
-  const container=document.getElementById(containerId||"videoInnerContainer");
-  if(!container) return;
+
+window.gemixLayoutGroupVideo = function (containerId) {
+  const container = document.getElementById(containerId || "videoInnerContainer");
+  if (!container) return;
   container.classList.add("gemix-group-video-grid");
-  const tiles=container.querySelectorAll("video, .gemix-video-tile, .selfie-pip-box");
-  tiles.forEach((t)=>{ if(t.classList.contains("selfie-pip-box")){ t.style.position="relative"; t.style.width="100%"; t.style.height="100%"; t.style.bottom="auto"; t.style.right="auto"; } });
-  container.setAttribute("data-count", String(tiles.length||1));
+  const tiles = container.querySelectorAll("video, .gemix-video-tile, .selfie-pip-box");
+  tiles.forEach((t) => {
+    if (t.classList.contains("selfie-pip-box")) {
+      t.style.position = "relative";
+      t.style.width = "100%";
+      t.style.height = "100%";
+      t.style.bottom = "auto";
+      t.style.right = "auto";
+    }
+  });
+  container.setAttribute("data-count", String(tiles.length || 1));
 };
-window.addEventListener("resize", ()=>{ window.gemixLayoutGroupVideo("videoInnerContainer"); });
-window.addEventListener("orientationchange", ()=>{ setTimeout(()=>window.gemixLayoutGroupVideo("videoInnerContainer"), 300); });
-async function gemixSha256Hex(str){
-  const buf=await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+window.addEventListener("resize", () => { window.gemixLayoutGroupVideo("videoInnerContainer"); });
+window.addEventListener("orientationchange", () => { setTimeout(() => window.gemixLayoutGroupVideo("videoInnerContainer"), 300); });
+
+async function gemixSha256Hex(str) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
-async function gemixKeyFromMaster(masterKey){
-  const hash=await crypto.subtle.digest("SHA-256", new TextEncoder().encode("GEMIX:"+masterKey));
-  return crypto.subtle.importKey("raw", hash, {name:"AES-GCM"}, false, ["encrypt","decrypt"]);
+async function gemixKeyFromMaster(masterKey) {
+  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("GEMIX:" + masterKey));
+  return crypto.subtle.importKey("raw", hash, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
 }
-async function gemixEncryptWithMaster(masterKey, plainObj){
-  const key=await gemixKeyFromMaster(masterKey);
-  const iv=crypto.getRandomValues(new Uint8Array(12));
-  const enc=await crypto.subtle.encrypt({name:"AES-GCM", iv}, key, new TextEncoder().encode(JSON.stringify(plainObj)));
-  const combined=new Uint8Array(iv.length+enc.byteLength); combined.set(iv,0); combined.set(new Uint8Array(enc), iv.length);
-  let bin=""; combined.forEach(b=>bin+=String.fromCharCode(b)); return btoa(bin);
+async function gemixEncryptWithMaster(masterKey, plainObj) {
+  const key = await gemixKeyFromMaster(masterKey);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const enc = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(JSON.stringify(plainObj)));
+  const combined = new Uint8Array(iv.length + enc.byteLength);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(enc), iv.length);
+  let bin = "";
+  combined.forEach((b) => (bin += String.fromCharCode(b)));
+  return btoa(bin);
 }
-async function gemixDecryptWithMaster(masterKey, b64){
-  const key=await gemixKeyFromMaster(masterKey);
-  const bin=atob(b64); const bytes=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
-  const iv=bytes.slice(0,12); const data=bytes.slice(12);
-  const dec=await crypto.subtle.decrypt({name:"AES-GCM", iv}, key, data);
+async function gemixDecryptWithMaster(masterKey, b64) {
+  const key = await gemixKeyFromMaster(masterKey);
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const iv = bytes.slice(0, 12);
+  const data = bytes.slice(12);
+  const dec = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
   return JSON.parse(new TextDecoder().decode(dec));
 }
-window.gemixBackupNow=async function(){
-  if(!myProfile||!myProfile.gemixNum||!myProfile.masterKey) return;
-  try{
-    const payload={ profile: myProfile, contacts: contacts, backedUpAt: new Date().toISOString() };
-    const encrypted=await gemixEncryptWithMaster(myProfile.masterKey, payload);
-    const keyHash=await gemixSha256Hex("GEMIX-KEY:"+myProfile.masterKey);
-    await setDoc(doc(db, "gemix_backups", myProfile.gemixNum), { encrypted, updatedAt: serverTimestamp() }, {merge:true});
-    await setDoc(doc(db, "gemix_key_index", keyHash), { gemixNum: myProfile.gemixNum, updatedAt: serverTimestamp() }, {merge:true});
+
+window.gemixBackupNow = async function () {
+  if (!myProfile || !myProfile.gemixNum || !myProfile.masterKey) return;
+  try {
+    const payload = { profile: myProfile, contacts: contacts, backedUpAt: new Date().toISOString() };
+    const encrypted = await gemixEncryptWithMaster(myProfile.masterKey, payload);
+    const keyHash = await gemixSha256Hex("GEMIX-KEY:" + myProfile.masterKey);
+    await setDoc(doc(db, "gemix_backups", myProfile.gemixNum), { encrypted, updatedAt: serverTimestamp() }, { merge: true });
+    await setDoc(doc(db, "gemix_key_index", keyHash), { gemixNum: myProfile.gemixNum, updatedAt: serverTimestamp() }, { merge: true });
     localStorage.setItem("gemix_last_backup", new Date().toISOString());
-  }catch(e){ console.error("Backup failed", e); }
+  } catch (e) {
+    console.error("Backup failed", e);
+  }
 };
-window.gemixRestoreWithMasterKey=async function(masterKey){
-  if(!masterKey){ alert("Master Key podu machi!"); return null; }
-  try{
+
+window.gemixRestoreWithMasterKey = async function (masterKey) {
+  if (!masterKey) {
+    alert("Master Key podu machi!");
+    return null;
+  }
+  try {
     showToast("Restoring your data...");
-    const keyHash=await gemixSha256Hex("GEMIX-KEY:"+masterKey);
-    const idxSnap=await getDoc(doc(db, "gemix_key_index", keyHash));
-    if(!idxSnap.exists()){ alert("Itha Master Key ku backup illa machi!"); return null; }
-    const gemixNum=idxSnap.data().gemixNum;
-    const bakSnap=await getDoc(doc(db, "gemix_backups", gemixNum));
-    if(!bakSnap.exists()){ alert("Backup kedaikala!"); return null; }
-    const data=await gemixDecryptWithMaster(masterKey, bakSnap.data().encrypted);
-    myProfile=data.profile; contacts=data.contacts||[];
+    const keyHash = await gemixSha256Hex("GEMIX-KEY:" + masterKey);
+    const idxSnap = await getDoc(doc(db, "gemix_key_index", keyHash));
+    if (!idxSnap.exists()) {
+      alert("Itha Master Key ku backup illa machi!");
+      return null;
+    }
+    const gemixNum = idxSnap.data().gemixNum;
+    const bakSnap = await getDoc(doc(db, "gemix_backups", gemixNum));
+    if (!bakSnap.exists()) {
+      alert("Backup kedaikala!");
+      return null;
+    }
+    const data = await gemixDecryptWithMaster(masterKey, bakSnap.data().encrypted);
+    myProfile = data.profile;
+    contacts = data.contacts || [];
     localStorage.setItem("gemix_vip_session", JSON.stringify(myProfile));
-    for(const c of contacts){ try{ await setDoc(doc(db, "users", myProfile.gemixNum, "contacts", c.gemixId), {...c, createdAt: serverTimestamp()}, {merge:true}); }catch(e){} }
-    applyProfileToUI(myProfile); startCloudListeners();
-    if(typeof window.startGemixPresence==="function") window.startGemixPresence();
+    for (const c of contacts) {
+      try {
+        await setDoc(doc(db, "users", myProfile.gemixNum, "contacts", c.gemixId), { ...c, createdAt: serverTimestamp() }, { merge: true });
+      } catch (e) {}
+    }
+    applyProfileToUI(myProfile);
+    startCloudListeners();
+    if (typeof window.startGemixPresence === "function") window.startGemixPresence();
     document.getElementById("newUserLoginModal").classList.remove("open");
-    showToast("Full Data Restored! Welcome back!"); return data;
-  }catch(e){ alert("Master Key thappu! Restore mudiyala."); return null; }
+    showToast("Full Data Restored! Welcome back!");
+    return data;
+  } catch (e) {
+    alert("Master Key thappu! Restore mudiyala.");
+    return null;
+  }
 };
-window.gemixTryRestoreFromLogin=function(){
-  const key=document.getElementById("loginMasterKey").value.trim();
-  if(!key){ alert("Master Key mattum podu machi, full data restore aagum!"); return; }
+
+window.gemixTryRestoreFromLogin = function () {
+  const key = document.getElementById("loginMasterKey").value.trim();
+  if (!key) {
+    alert("Master Key mattum podu machi, full data restore aagum!");
+    return;
+  }
   window.gemixRestoreWithMasterKey(key);
 };
 // ============ END PHASE 3 ============
 
+
+// ============ LOGIN, SHOP REDIRECT & LICENSE AUTO-FILL ============
+function applyLicenseSnapshotToInput(snap, expectedSuffix) {
+  const currentSuffix = document.getElementById("loginUserIdSuffix")?.value.trim() || "";
+  if (currentSuffix !== expectedSuffix) return;
+
+  const numInput = document.getElementById("loginGemixNum");
+  if (!numInput) return;
+
+  if (snap && snap.exists()) {
+    const data = snap.data();
+    const rawNum = data.gemixNum != null ? String(data.gemixNum).trim() : "";
+    const status = String(data.status || "").toLowerCase();
+
+    if (status === "active" && /^\d{5}$/.test(rawNum)) {
+      const wasEmpty = numInput.value !== rawNum;
+      numInput.value = rawNum;
+      const errEl = document.getElementById("loginError");
+      if (errEl) errEl.style.display = "none";
+      if (wasEmpty) {
+        showToast("5-Digit Gemix Number Activated!");
+      }
+      return;
+    }
+  }
+  numInput.value = "";
+}
+
+// Real-time + on-resume auto-fill of 5-digit Gemix Number when activated from Activation Centre
+window.watchLicenseAutoFill = async function (forceRefresh = false) {
+  const suffixEl = document.getElementById("loginUserIdSuffix");
+  const numInput = document.getElementById("loginGemixNum");
+  if (!suffixEl || !numInput) return;
+
+  const suffix = suffixEl.value.trim();
+  if (!suffix) {
+    watchedLicenseSuffix = "";
+    if (unsubscribeLicenseListener) {
+      unsubscribeLicenseListener();
+      unsubscribeLicenseListener = null;
+    }
+    numInput.value = "";
+    return;
+  }
+
+  const fullUserId = "G_" + suffix;
+  const licenseRef = doc(db, "licenses", fullUserId);
+
+  // Immediate fetch (essential when returning from Shop browser in Android WebView)
+  if (forceRefresh || watchedLicenseSuffix !== suffix) {
+    try {
+      const immediateSnap = await getDoc(licenseRef);
+      applyLicenseSnapshotToInput(immediateSnap, suffix);
+    } catch (e) {}
+  }
+
+  if (watchedLicenseSuffix === suffix && unsubscribeLicenseListener) {
+    return;
+  }
+
+  watchedLicenseSuffix = suffix;
+  if (unsubscribeLicenseListener) {
+    unsubscribeLicenseListener();
+    unsubscribeLicenseListener = null;
+  }
+
+  unsubscribeLicenseListener = onSnapshot(licenseRef, (snap) => {
+    applyLicenseSnapshotToInput(snap, suffix);
+  });
+};
+
 window.addEventListener("DOMContentLoaded", () => {
+  const suffixInput = document.getElementById("loginUserIdSuffix");
+  if (suffixInput) {
+    suffixInput.addEventListener("input", () => window.watchLicenseAutoFill(false));
+    suffixInput.addEventListener("change", () => window.watchLicenseAutoFill(true));
+  }
+
   const draftLogin = localStorage.getItem("gemix_pending_login");
   const savedSession = localStorage.getItem("gemix_vip_session");
 
@@ -371,7 +569,7 @@ window.addEventListener("DOMContentLoaded", () => {
     myProfile = JSON.parse(savedSession);
     applyProfileToUI(myProfile);
     startCloudListeners();
-    if(typeof window.startGemixPresence==="function") window.startGemixPresence();
+    if (typeof window.startGemixPresence === "function") window.startGemixPresence();
     monitorActiveSessionLicense(myProfile.userId);
   } else {
     if (draftLogin) {
@@ -384,50 +582,43 @@ window.addEventListener("DOMContentLoaded", () => {
           tempAvatarDataUrl = d.avatarUrl;
           document.getElementById("pickerPreviewBox").innerHTML = `<img src="${tempAvatarDataUrl}" alt="Avatar">`;
         }
-        watchLicenseAutoFill();
+        window.watchLicenseAutoFill(true);
       } catch (e) {}
     }
     document.getElementById("newUserLoginModal").classList.add("open");
   }
+
+  // Capacitor native app resume listener (triggers auto-fill right after closing Shop browser)
+  try {
+    const capApp = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+    if (capApp && typeof capApp.addListener === "function") {
+      capApp.addListener("appStateChange", ({ isActive }) => {
+        if (isActive && !localStorage.getItem("gemix_vip_session")) {
+          window.watchLicenseAutoFill(true);
+        }
+      });
+    }
+  } catch (e) {}
 });
 
-// Real-time auto-fill of 5-digit Gemix Number when activated from Activation Centre
-window.watchLicenseAutoFill = function() {
-  const suffix = document.getElementById("loginUserIdSuffix").value.trim();
-  if (unsubscribeLicenseListener) {
-    unsubscribeLicenseListener();
-    unsubscribeLicenseListener = null;
+// Web / Android WebView visibility & focus resume check for instant auto-fill
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && !localStorage.getItem("gemix_vip_session")) {
+    window.watchLicenseAutoFill(true);
   }
-  if (!suffix) {
-    document.getElementById("loginGemixNum").value = "";
-    return;
+});
+window.addEventListener("focus", () => {
+  if (!localStorage.getItem("gemix_vip_session")) {
+    window.watchLicenseAutoFill(true);
   }
-
-  const fullUserId = "G_" + suffix;
-  const licenseRef = doc(db, "licenses", fullUserId);
-
-  unsubscribeLicenseListener = onSnapshot(licenseRef, (snap) => {
-    const numInput = document.getElementById("loginGemixNum");
-    if (snap.exists()) {
-      const data = snap.data();
-      if (data.status === "active" && data.gemixNum && String(data.gemixNum).length === 5) {
-        numInput.value = String(data.gemixNum);
-        document.getElementById("loginError").style.display = "none";
-      } else {
-        numInput.value = "";
-      }
-    } else {
-      numInput.value = "";
-    }
-  });
-};
+});
 
 // Monitor live license status while logged in
 function monitorActiveSessionLicense(userId) {
   if (!userId) return;
   const licenseRef = doc(db, "licenses", userId);
   onSnapshot(licenseRef, (snap) => {
-    if (snap.exists() && snap.data().status === "inactive") {
+    if (snap.exists() && String(snap.data().status || "").toLowerCase() === "inactive") {
       localStorage.removeItem("gemix_vip_session");
       alert("Your VIP Gemix Number has been deactivated by Activation Centre.");
       location.reload();
@@ -435,8 +626,31 @@ function monitorActiveSessionLicense(userId) {
   });
 }
 
-// Cart button click -> strict validation before redirecting to Gemix Shop
-window.goToGemixShop = async function() {
+// Cart button click -> safe native/web redirect to Gemix Shop
+async function openGemixShopUrl(shopUrl) {
+  try {
+    const capBrowser = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser;
+    if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform() && capBrowser && typeof capBrowser.open === "function") {
+      await capBrowser.open({ url: shopUrl });
+      return;
+    }
+  } catch (e) {}
+
+  try {
+    const { Browser } = await import("https://esm.sh/@capacitor/browser@6");
+    if (Browser && typeof Browser.open === "function") {
+      await Browser.open({ url: shopUrl });
+      return;
+    }
+  } catch (e) {}
+
+  const win = window.open(shopUrl, "_blank", "noopener,noreferrer");
+  if (!win) {
+    window.location.href = shopUrl;
+  }
+}
+
+window.goToGemixShop = async function () {
   const name = document.getElementById("loginName").value.trim();
   const suffix = document.getElementById("loginUserIdSuffix").value.trim();
   const masterKey = document.getElementById("loginMasterKey").value.trim();
@@ -458,15 +672,11 @@ window.goToGemixShop = async function() {
     avatarUrl: tempAvatarDataUrl || myProfile.avatarUrl || ""
   }));
 
-  const shopUrl = `https://gemix-shop.web.app/?name=${encodeURIComponent(name)}&userId=${fullUserId}`;
+  // Ensure live listener is attached before leaving for Shop
+  window.watchLicenseAutoFill(true);
 
-  if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-    const { Browser } = await import('@capacitor/browser');
-    await Browser.open({ url: shopUrl });
-    return;
-  }
-
-  window.location.href = shopUrl;
+  const shopUrl = `https://gemix-shop.web.app/?name=${encodeURIComponent(name)}&userId=${encodeURIComponent(fullUserId)}`;
+  await openGemixShopUrl(shopUrl);
 };
 
 function applyProfileToUI(profile) {
@@ -519,7 +729,7 @@ function fileToBase64(file) {
   });
 }
 
-window.previewLoginAvatar = async function(event) {
+window.previewLoginAvatar = async function (event) {
   const file = event.target.files[0];
   if (!file) return;
   try {
@@ -528,7 +738,7 @@ window.previewLoginAvatar = async function(event) {
   } catch (e) {}
 };
 
-window.openLoginModal = function() {
+window.openLoginModal = function () {
   document.getElementById("loginError").style.display = "none";
   if (myProfile.name) {
     document.getElementById("loginName").value = myProfile.name;
@@ -539,12 +749,12 @@ window.openLoginModal = function() {
       tempAvatarDataUrl = myProfile.avatarUrl;
       document.getElementById("pickerPreviewBox").innerHTML = `<img src="${tempAvatarDataUrl}" alt="Avatar">`;
     }
-    watchLicenseAutoFill();
+    window.watchLicenseAutoFill(true);
   }
   document.getElementById("newUserLoginModal").classList.add("open");
 };
 
-window.completeUserLogin = async function() {
+window.completeUserLogin = async function () {
   const name = document.getElementById("loginName").value.trim();
   const gemixNum = document.getElementById("loginGemixNum").value.trim();
   const userIdSuffix = document.getElementById("loginUserIdSuffix").value.trim();
@@ -558,7 +768,7 @@ window.completeUserLogin = async function() {
     return;
   }
 
-  if (gemixNum.length !== 5) {
+  if (!/^\d{5}$/.test(gemixNum)) {
     errorEl.innerText = "Gemix Number is locked! Tap the cart icon to buy & activate your 5-digit number.";
     errorEl.style.display = "block";
     return;
@@ -571,7 +781,12 @@ window.completeUserLogin = async function() {
 
   try {
     const licenseSnap = await getDoc(doc(db, "licenses", fullUserId));
-    if (!licenseSnap.exists() || licenseSnap.data().status !== "active" || String(licenseSnap.data().gemixNum) !== gemixNum) {
+    const licData = licenseSnap.exists() ? licenseSnap.data() : null;
+    if (
+      !licData ||
+      String(licData.status || "").toLowerCase() !== "active" ||
+      String(licData.gemixNum || "").trim() !== gemixNum
+    ) {
       errorEl.innerText = "Number not active for this User ID! Complete activation in Shop.";
       errorEl.style.display = "block";
       submitBtn.disabled = false;
@@ -592,8 +807,8 @@ window.completeUserLogin = async function() {
     localStorage.removeItem("gemix_pending_login");
     applyProfileToUI(myProfile);
     startCloudListeners();
-    if(typeof window.startGemixPresence==="function") window.startGemixPresence();
-    if(typeof window.gemixBackupNow==="function") window.gemixBackupNow();
+    if (typeof window.startGemixPresence === "function") window.startGemixPresence();
+    if (typeof window.gemixBackupNow === "function") window.gemixBackupNow();
     monitorActiveSessionLicense(fullUserId);
 
     document.getElementById("newUserLoginModal").classList.remove("open");
@@ -628,8 +843,8 @@ function startCloudListeners() {
         document.getElementById("incomingCallerName").innerText = callData.callerName;
         document.getElementById("incomingCallType").innerText = callData.isVideo ? "VIP Video Call" : "VIP Voice Call";
         document.getElementById("incomingCallBanner").classList.add("show");
-        if(typeof window.showGemixCallScreen==="function") window.showGemixCallScreen(callData.callerName, callData.isVideo, true);
-        if(typeof window.playGemixRingtone==="function") window.playGemixRingtone();
+        if (typeof window.showGemixCallScreen === "function") window.showGemixCallScreen(callData.callerName, callData.isVideo, true);
+        if (typeof window.playGemixRingtone === "function") window.playGemixRingtone();
       } else {
         document.getElementById("incomingCallBanner").classList.remove("show");
       }
@@ -639,16 +854,16 @@ function startCloudListeners() {
   });
 }
 
-window.openAddContactModal = function() {
+window.openAddContactModal = function () {
   document.getElementById("addContactModal").classList.add("open");
   document.getElementById("idError").style.display = "none";
 };
 
-window.closeAddContactModal = function() {
+window.closeAddContactModal = function () {
   document.getElementById("addContactModal").classList.remove("open");
 };
 
-window.saveNewContact = async function() {
+window.saveNewContact = async function () {
   const nameInput = document.getElementById("contactName");
   const idInput = document.getElementById("contactGemixId");
   const noteInput = document.getElementById("contactNote");
@@ -702,7 +917,7 @@ window.saveNewContact = async function() {
   }
 };
 
-window.renderAllLists = function() {
+window.renderAllLists = function () {
   const chatList = document.getElementById("chatList");
   const callList = document.getElementById("callList");
   const videoList = document.getElementById("videoList");
@@ -776,8 +991,8 @@ window.renderAllLists = function() {
   });
 };
 
-window.openChat = function(name, gemixId, avatarText, note) {
-  if(typeof window.listenToPeerPresence==="function") window.listenToPeerPresence(gemixId);
+window.openChat = function (name, gemixId, avatarText, note) {
+  if (typeof window.listenToPeerPresence === "function") window.listenToPeerPresence(gemixId);
   const contactObj = contacts.find((c) => c.gemixId === gemixId);
   const avatarUrl = contactObj ? contactObj.avatarUrl : "";
   window.activeChatPeer = { name, gemixId, initial: avatarText, note, avatarUrl };
@@ -802,7 +1017,11 @@ window.openChat = function(name, gemixId, avatarText, note) {
   if (unsubscribeChatListener) unsubscribeChatListener();
 
   unsubscribeChatListener = onSnapshot(q, (snapshot) => {
-    snapshot.docChanges().forEach((chg)=>{ if(chg.type==="added" && chg.doc.data().senderGemixNum !== myProfile.gemixNum){ if(typeof window.playGemixNotification==="function") window.playGemixNotification(); } });
+    snapshot.docChanges().forEach((chg) => {
+      if (chg.type === "added" && chg.doc.data().senderGemixNum !== myProfile.gemixNum) {
+        if (typeof window.playGemixNotification === "function") window.playGemixNotification();
+      }
+    });
     currentMessagesMap = {};
     box.innerHTML = note ? `<div class="note-banner">Note: ${escapeHtml(note)}</div>` : "";
     snapshot.forEach((docSnap) => {
@@ -896,7 +1115,7 @@ function appendMessageBubble(msg) {
 }
 
 // Long-press message action modal
-window.openMsgActionModal = function(msgId) {
+window.openMsgActionModal = function (msgId) {
   const msg = currentMessagesMap[msgId];
   if (!msg) return;
   selectedLongPressMsg = msg;
@@ -913,12 +1132,12 @@ window.openMsgActionModal = function(msgId) {
   document.getElementById("msgActionModal").classList.add("open");
 };
 
-window.closeMsgActionModal = function() {
+window.closeMsgActionModal = function () {
   document.getElementById("msgActionModal").classList.remove("open");
   selectedLongPressMsg = null;
 };
 
-window.copySelectedMessage = async function() {
+window.copySelectedMessage = async function () {
   if (!selectedLongPressMsg) return;
   const textToCopy = selectedLongPressMsg.text || selectedLongPressMsg.caption || "";
   if (!textToCopy) return;
@@ -938,7 +1157,7 @@ window.copySelectedMessage = async function() {
   closeMsgActionModal();
 };
 
-window.downloadSelectedMedia = function() {
+window.downloadSelectedMedia = function () {
   if (!selectedLongPressMsg || !selectedLongPressMsg.fileUrl) return;
 
   const url = selectedLongPressMsg.fileUrl;
@@ -961,13 +1180,13 @@ window.downloadSelectedMedia = function() {
   closeMsgActionModal();
 };
 
-window.backToActionMenu = function() {
+window.backToActionMenu = function () {
   document.getElementById("msgActionModalTitle").innerText = "Message Options";
   document.getElementById("msgActionMainMenu").style.display = "flex";
   document.getElementById("forwardFriendsPanel").style.display = "none";
 };
 
-window.openForwardFriendsList = function() {
+window.openForwardFriendsList = function () {
   if (contacts.length === 0) {
     alert("No contacts available to share with!");
     return;
@@ -993,7 +1212,7 @@ window.openForwardFriendsList = function() {
   });
 };
 
-window.executeForwardMessage = async function() {
+window.executeForwardMessage = async function () {
   if (!selectedLongPressMsg) return;
   const checked = document.querySelectorAll(".share-friend-checkbox:checked");
   if (checked.length === 0) {
@@ -1036,7 +1255,7 @@ window.executeForwardMessage = async function() {
   }
 };
 
-window.deleteSelectedMessage = async function() {
+window.deleteSelectedMessage = async function () {
   if (!selectedLongPressMsg) return;
   const { chatId, id } = selectedLongPressMsg;
   closeMsgActionModal();
@@ -1049,7 +1268,7 @@ window.deleteSelectedMessage = async function() {
   }
 };
 
-window.toggleActionBtn = function() {
+window.toggleActionBtn = function () {
   const text = document.getElementById("msgInput").value.trim();
   const btn = document.getElementById("mainActionBtn");
   if (text.length > 0) {
@@ -1059,7 +1278,7 @@ window.toggleActionBtn = function() {
   }
 };
 
-window.handleMainAction = function() {
+window.handleMainAction = function () {
   const text = document.getElementById("msgInput").value.trim();
   if (text.length > 0) {
     sendMessage();
@@ -1072,7 +1291,7 @@ window.handleMainAction = function() {
   }
 };
 
-window.sendMessage = async function() {
+window.sendMessage = async function () {
   const input = document.getElementById("msgInput");
   const text = input.value.trim();
   if (!text || !window.activeChatPeer.gemixId) return;
@@ -1093,7 +1312,7 @@ window.sendMessage = async function() {
 };
 
 // Voice note record, preview & cloud sync
-window.startVoiceNote = async function() {
+window.startVoiceNote = async function () {
   isRecording = true;
   isRecordedReady = false;
   recSeconds = 0;
@@ -1132,7 +1351,7 @@ window.startVoiceNote = async function() {
   }, 1000);
 };
 
-window.stopVoiceRecordingAndPreview = function() {
+window.stopVoiceRecordingAndPreview = function () {
   clearInterval(recInterval);
   isRecording = false;
   isRecordedReady = true;
@@ -1152,7 +1371,7 @@ window.stopVoiceRecordingAndPreview = function() {
   document.getElementById("mainActionBtn").innerText = "Send";
 };
 
-window.togglePreviewPlayback = function() {
+window.togglePreviewPlayback = function () {
   const playBtn = document.getElementById("previewPlayBtn");
   const statusText = document.getElementById("previewStatus");
   if (previewAudioElement) {
@@ -1172,7 +1391,7 @@ window.togglePreviewPlayback = function() {
   }
 };
 
-window.cancelVoiceNote = function() {
+window.cancelVoiceNote = function () {
   if (mediaRecorder && mediaRecorder.state !== "inactive") {
     mediaRecorder.stop();
     mediaRecorder.stream.getTracks().forEach((t) => t.stop());
@@ -1185,7 +1404,7 @@ window.cancelVoiceNote = function() {
   resetInputBar();
 };
 
-window.sendRecordedVoiceNote = async function() {
+window.sendRecordedVoiceNote = async function () {
   const duration = document.getElementById("recTimer").innerText;
   const actionBtn = document.getElementById("mainActionBtn");
   actionBtn.disabled = true;
@@ -1213,7 +1432,7 @@ window.sendRecordedVoiceNote = async function() {
   resetInputBar();
 };
 
-window.playVoice = function(audioId, btn) {
+window.playVoice = function (audioId, btn) {
   const audio = document.getElementById(audioId);
   if (audio) {
     if (audio.paused) {
@@ -1242,7 +1461,7 @@ function resetInputBar() {
 }
 
 // Media & file preview + cloud sync
-window.openMediaPreviewModal = function(event) {
+window.openMediaPreviewModal = function (event) {
   const file = event.target.files[0];
   if (!file) return;
 
@@ -1283,13 +1502,13 @@ window.openMediaPreviewModal = function(event) {
   event.target.value = "";
 };
 
-window.closeMediaPreviewModal = function() {
+window.closeMediaPreviewModal = function () {
   document.getElementById("mediaPreviewModal").classList.remove("open");
   pendingMediaFile = null;
   pendingMediaUrl = null;
 };
 
-window.confirmSendMedia = async function() {
+window.confirmSendMedia = async function () {
   if (!pendingMediaFile || !window.activeChatPeer.gemixId) return;
 
   const caption = document.getElementById("mediaCaptionInput").value.trim();
@@ -1406,9 +1625,12 @@ function attachCallHangupListener(docId, isVideo) {
   });
 }
 
-window.initiateWebRTCCall = async function(peerName, peerGemixId, isVideo) {
-  if(typeof window.showGemixCallScreen==="function") window.showGemixCallScreen(peerName, isVideo, false);
-  setTimeout(()=>{ if(typeof window.hideGemixCallScreen==="function") window.hideGemixCallScreen(); if(typeof window.startGemixProximitySensor==="function") window.startGemixProximitySensor(); }, 1500);
+window.initiateWebRTCCall = async function (peerName, peerGemixId, isVideo) {
+  if (typeof window.showGemixCallScreen === "function") window.showGemixCallScreen(peerName, isVideo, false);
+  setTimeout(() => {
+    if (typeof window.hideGemixCallScreen === "function") window.hideGemixCallScreen();
+    if (typeof window.startGemixProximitySensor === "function") window.startGemixProximitySensor();
+  }, 1500);
   currentCallDocId = peerGemixId;
   const screenId = isVideo ? "active-video-screen" : "active-call-screen";
   enterFullScreenView(screenId);
@@ -1430,7 +1652,9 @@ window.initiateWebRTCCall = async function(peerName, peerGemixId, isVideo) {
 
     if (isVideo) {
       setupVideoUI(localStream, null);
-      setTimeout(()=>{ if(typeof window.gemixLayoutGroupVideo==="function") window.gemixLayoutGroupVideo("videoInnerContainer"); }, 200);
+      setTimeout(() => {
+        if (typeof window.gemixLayoutGroupVideo === "function") window.gemixLayoutGroupVideo("videoInnerContainer");
+      }, 200);
     }
 
     peerConnection = new RTCPeerConnection(rtcServers);
@@ -1496,13 +1720,13 @@ window.initiateWebRTCCall = async function(peerName, peerGemixId, isVideo) {
   }
 };
 
-window.acceptIncomingCall = async function() {
+window.acceptIncomingCall = async function () {
   if (!incomingCallData) return;
   document.getElementById("incomingCallBanner").classList.remove("show");
-  if(typeof window.hideGemixCallScreen==="function") window.hideGemixCallScreen();
-  if(typeof window.startGemixProximitySensor==="function") window.startGemixProximitySensor();
-  if(typeof window.stopGemixRingtone==="function") window.stopGemixRingtone();
-  if(typeof window.stopGemixCallerTune==="function") window.stopGemixCallerTune();
+  if (typeof window.hideGemixCallScreen === "function") window.hideGemixCallScreen();
+  if (typeof window.startGemixProximitySensor === "function") window.startGemixProximitySensor();
+  if (typeof window.stopGemixRingtone === "function") window.stopGemixRingtone();
+  if (typeof window.stopGemixCallerTune === "function") window.stopGemixCallerTune();
 
   const isVideo = incomingCallData.isVideo;
   currentCallDocId = myProfile.gemixNum;
@@ -1526,7 +1750,9 @@ window.acceptIncomingCall = async function() {
 
     if (isVideo) {
       setupVideoUI(localStream, null);
-      setTimeout(()=>{ if(typeof window.gemixLayoutGroupVideo==="function") window.gemixLayoutGroupVideo("videoInnerContainer"); }, 200);
+      setTimeout(() => {
+        if (typeof window.gemixLayoutGroupVideo === "function") window.gemixLayoutGroupVideo("videoInnerContainer");
+      }, 200);
     }
 
     peerConnection = new RTCPeerConnection(rtcServers);
@@ -1580,9 +1806,9 @@ window.acceptIncomingCall = async function() {
   }
 };
 
-window.declineIncomingCall = async function() {
-  if(typeof window.stopGemixRingtone==="function") window.stopGemixRingtone();
-  if(typeof window.stopGemixCallerTune==="function") window.stopGemixCallerTune();
+window.declineIncomingCall = async function () {
+  if (typeof window.stopGemixRingtone === "function") window.stopGemixRingtone();
+  if (typeof window.stopGemixCallerTune === "function") window.stopGemixCallerTune();
   document.getElementById("incomingCallBanner").classList.remove("show");
   const myDocRef = doc(db, "calls", myProfile.gemixNum);
   try {
@@ -1594,9 +1820,9 @@ window.declineIncomingCall = async function() {
   incomingCallData = null;
 };
 
-window.endWebRTCCall = async function(returnScreenId) {
-  if(typeof window.stopGemixProximitySensor==="function") window.stopGemixProximitySensor();
-  if(typeof window.hideGemixCallScreen==="function") window.hideGemixCallScreen();
+window.endWebRTCCall = async function (returnScreenId) {
+  if (typeof window.stopGemixProximitySensor === "function") window.stopGemixProximitySensor();
+  if (typeof window.hideGemixCallScreen === "function") window.hideGemixCallScreen();
   const docIdToEnd = currentCallDocId || (incomingCallData && incomingCallData.callerGemixNum);
   const myDocRef = doc(db, "calls", myProfile.gemixNum);
   const peerDocRef = docIdToEnd ? doc(db, "calls", docIdToEnd) : null;
@@ -1657,7 +1883,7 @@ function startVideoTimer() {
   }, 1000);
 }
 
-window.toggleAudio = function() {
+window.toggleAudio = function () {
   if (localStream) {
     const audioTrack = localStream.getAudioTracks()[0];
     if (audioTrack) {
@@ -1672,7 +1898,7 @@ window.toggleAudio = function() {
   }
 };
 
-window.toggleVideo = function() {
+window.toggleVideo = function () {
   if (localStream) {
     const videoTrack = localStream.getVideoTracks()[0];
     if (videoTrack) {
@@ -1689,7 +1915,7 @@ window.toggleVideo = function() {
   }
 };
 
-window.switchCamera = async function() {
+window.switchCamera = async function () {
   useFrontCamera = !useFrontCamera;
   if (localStream) {
     const videoTrack = localStream.getVideoTracks()[0];
@@ -1710,7 +1936,7 @@ window.switchCamera = async function() {
   }
 };
 
-window.toggleBrowserPiP = async function() {
+window.toggleBrowserPiP = async function () {
   const remoteVideo = document.getElementById("webcamVideo");
   try {
     if (document.pictureInPictureElement) {
@@ -1722,7 +1948,7 @@ window.toggleBrowserPiP = async function() {
 };
 
 // Group conversation controls
-window.toggleGroupMode = function() {
+window.toggleGroupMode = function () {
   if (contacts.length === 0) {
     alert("Please add VIP contacts first using the + button!");
     return;
@@ -1749,7 +1975,7 @@ window.toggleGroupMode = function() {
   updateSelectedCount();
 };
 
-window.handleGroupCardClick = function(cardElement, name) {
+window.handleGroupCardClick = function (cardElement, name) {
   if (!isGroupSelectionMode) return;
   const checkbox = cardElement.querySelector(".group-checkbox");
   checkbox.checked = !checkbox.checked;
@@ -1761,7 +1987,7 @@ function updateSelectedCount() {
   document.getElementById("selectedCountText").innerText = `${checkedBoxes.length} selected`;
 }
 
-window.triggerGroupCall = function(type) {
+window.triggerGroupCall = function (type) {
   const checkedBoxes = document.querySelectorAll(".group-checkbox:checked");
   if (checkedBoxes.length === 0) {
     alert("Please select at least one contact!");
@@ -1773,7 +1999,7 @@ window.triggerGroupCall = function(type) {
 };
 
 // Lightbox & utilities
-window.openLightbox = function(type, url, fileName) {
+window.openLightbox = function (type, url, fileName) {
   const stage = document.getElementById("lightboxStage");
   document.getElementById("lightboxTitle").innerText = fileName;
 
@@ -1793,17 +2019,17 @@ window.openLightbox = function(type, url, fileName) {
   document.getElementById("lightboxModal").classList.add("open");
 };
 
-window.closeLightbox = function() {
+window.closeLightbox = function () {
   document.getElementById("lightboxModal").classList.remove("open");
 };
 
 function escapeHtml(text) {
   if (!text) return "";
-  const map = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+  const map = { "&": "&", "<": "<", ">": ">", '"': """, "'": "'" };
   return text.replace(/[&<>"']/g, (m) => map[m]);
 }
 
-window.switchScreen = function(screenId, clickedElement) {
+window.switchScreen = function (screenId, clickedElement) {
   if (!document.getElementById(screenId)) return;
   document.body.classList.remove("fullscreen-mode");
   document.getElementById("topBar").style.display = "flex";
@@ -1834,7 +2060,7 @@ function enterFullScreenView(screenId) {
   document.getElementById(screenId).classList.add("active");
 }
 
-window.closeSubScreen = function(returnScreenId) {
+window.closeSubScreen = function (returnScreenId) {
   if (typeof window.cancelVoiceNote === "function") window.cancelVoiceNote();
   if (typeof window.closeMediaPreviewModal === "function") window.closeMediaPreviewModal();
   if (typeof window.closeLightbox === "function") window.closeLightbox();
@@ -1852,13 +2078,17 @@ window.closeSubScreen = function(returnScreenId) {
     "video-screen": "tab-video",
     "group-screen": "tab-group"
   };
-  if (typeof window.switchScreen === "function") window.switchScreen(returnScreenId, document.getElementById(tabMap[returnScreenId]));
+  if (typeof window.switchScreen === "function") {
+    window.switchScreen(returnScreenId, document.getElementById(tabMap[returnScreenId]));
+  }
 };
 
-// ============ NEOMORPHIC RECEIVER SCREEN - Same as Dialler Screenshot ============
-(function(){
-  const st=document.createElement("style"); st.id="gemixNeoReceiverStyle";
-  st.textContent=`
+
+// ============ NEOMORPHIC RECEIVER SCREEN + AVATAR V-BUG FIX ============
+(function () {
+  const st = document.createElement("style");
+  st.id = "gemixNeoReceiverStyle";
+  st.textContent = `
   .gemix-call-screen{position:fixed;inset:0;z-index:999;background:#edf1f8 !important;display:none;flex-direction:column;align-items:center;justify-content:space-between;padding:52px 24px 34px;color:#222835;font-family:sans-serif}
   .gemix-call-screen.show{display:flex}
   .gemix-neo-name{font-size:32px;font-weight:800;color:#222835;text-align:center;line-height:1.1}
@@ -1878,91 +2108,66 @@ window.closeSubScreen = function(returnScreenId) {
   `;
   document.head.appendChild(st);
 })();
-// Override - Neomorphic Receiver + Dialler same style
-window.showGemixCallScreen=function(callerName, isVideo, isIncoming){
-  let el=document.getElementById("gemixCallScreen");
-  if(!el){
-    el=document.createElement("div"); el.id="gemixCallScreen"; el.className="gemix-call-screen";
-    document.body.appendChild(el);
-  }
-  const name=callerName||"VIP Contact";
-  const initial=name.charAt(0).toUpperCase();
-  const status=isIncoming?(isVideo?"Incoming Video Call...":"Incoming Call..."):(isVideo?"Calling Video...":"Calling...");
-  const footer=isIncoming
-    ? `<div class="gemix-neo-row">
-        <div class="gemix-neo-action"><button class="gemix-neo-btn decline" onclick="gemixDeclineFromCallScreen()">📵</button><span class="gemix-neo-label end">Decline</span></div>
-        <div class="gemix-neo-action"><button class="gemix-neo-btn accept" onclick="gemixAcceptFromCallScreen()">📞</button><span class="gemix-neo-label">Accept</span></div>
-      </div>`
-    : `<div class="gemix-neo-row">
-        <div class="gemix-neo-action"><button class="gemix-neo-btn" id="gemixNeoMuteBtn" onclick="gemixNeoToggleMute(this)">🎤</button><span class="gemix-neo-label">Mute</span></div>
-        <div class="gemix-neo-action"><button class="gemix-neo-btn decline" onclick="gemixDeclineFromCallScreen()">📵</button><span class="gemix-neo-label end">End</span></div>
-        <div class="gemix-neo-action"><button class="gemix-neo-btn" id="gemixNeoSpeakerBtn" onclick="gemixNeoToggleSpeaker(this)">🔊</button><span class="gemix-neo-label">Speaker</span></div>
-      </div>`;
-  el.innerHTML=`
-    <div style="text-align:center">
-      <div class="gemix-neo-name">${name}</div>
-      <div class="gemix-neo-status">${status}</div>
-    </div>
-    <div class="gemix-neo-avatar ringing">${initial}</div>
-    ${footer}`;
-  el.classList.add("show");
-};
-window.gemixNeoToggleMute=function(btn){
-  const on=btn.classList.toggle("muted");
-  btn.innerText=on?"🔇":"🎤";
-  if(typeof window.toggleMute==="function") window.toggleMute();
-};
-window.gemixNeoToggleSpeaker=function(btn){
-  const on=btn.classList.toggle("muted");
-  btn.innerText=on?"🔈":"🔊";
-  if(typeof window.toggleSpeaker==="function") window.toggleSpeaker();
-};
-// ============ END NEOMORPHIC RECEIVER ============
 
-// ============ FIX: Avatar V Bug - Real Contact Initial + Photo ============
-window.gemixResolveContactForCall=function(nameOrId){
-  try{
-    if(!window.contacts || !contacts.length) return null;
-    if(!nameOrId) return null;
-    // 1) Gemix Number la thedu (incoming ku ithu than correct - neenga save panna name kedaikum)
-    let c=contacts.find(x=>String(x.gemixId)===String(nameOrId));
-    if(c) return c;
-    // 2) Name la thedu (outgoing ku)
-    c=contacts.find(x=>(x.name||"").toLowerCase()===String(nameOrId).toLowerCase());
-    if(c) return c;
-    // 3) incomingCallData la irunthu callerGemixNum
-    if(window.incomingCallData && incomingCallData.callerGemixNum){
-      c=contacts.find(x=>String(x.gemixId)===String(incomingCallData.callerGemixNum));
-      if(c) return c;
+window.gemixNeoToggleMute = function (btn) {
+  const on = btn.classList.toggle("muted");
+  btn.innerText = on ? "🔇" : "🎤";
+  if (typeof window.toggleAudio === "function") window.toggleAudio();
+};
+
+window.gemixNeoToggleSpeaker = function (btn) {
+  const on = btn.classList.toggle("muted");
+  btn.innerText = on ? "🔈" : "🔊";
+  const audioEl = document.getElementById("remoteAudioElement");
+  if (audioEl) audioEl.volume = on ? 1.0 : 0.7;
+};
+
+window.gemixResolveContactForCall = function (nameOrId) {
+  try {
+    if (!contacts || !contacts.length) return null;
+    if (!nameOrId) return null;
+    let c = contacts.find((x) => String(x.gemixId) === String(nameOrId));
+    if (c) return c;
+    c = contacts.find((x) => (x.name || "").toLowerCase() === String(nameOrId).toLowerCase());
+    if (c) return c;
+    if (incomingCallData && incomingCallData.callerGemixNum) {
+      c = contacts.find((x) => String(x.gemixId) === String(incomingCallData.callerGemixNum));
+      if (c) return c;
     }
     return null;
-  }catch(e){ return null; }
-};
-// Override Neo showGemixCallScreen - V bug fix
-window.showGemixCallScreen=function(callerName, isVideo, isIncoming){
-  let el=document.getElementById("gemixCallScreen");
-  if(!el){ el=document.createElement("div"); el.id="gemixCallScreen"; el.className="gemix-call-screen"; document.body.appendChild(el); }
-  // Incoming na: caller oda profile name ah vida, NEENGA SAVE PANNA NAME than mukkiyam (Jiro)
-  let contact=window.gemixResolveContactForCall(callerName);
-  // Incoming la callerName sariya varalana, callerGemixNum la thedu
-  if(isIncoming && window.incomingCallData && incomingCallData.callerGemixNum){
-    const byId=window.gemixResolveContactForCall(incomingCallData.callerGemixNum);
-    if(byId) contact=byId;
+  } catch (e) {
+    return null;
   }
-  let displayName=callerName||"";
-  if(isIncoming && contact && contact.name) displayName=contact.name; // Jiro maari save panna name
-  if(!displayName || displayName==="VIP Contact") displayName=(contact&&contact.name)||"VIP Contact";
-  // Initial: contact la save aana initial ah eduthuko, illana displayName oda first letter
-  const initial=(contact&&contact.initial)?String(contact.initial).toUpperCase():displayName.charAt(0).toUpperCase();
-  // Photo iruntha photo kaatu, illana first letter kaatu - ithu than ne sonna future
-  const avatarInner=(contact&&contact.avatarUrl)
+};
+
+window.showGemixCallScreen = function (callerName, isVideo, isIncoming) {
+  let el = document.getElementById("gemixCallScreen");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "gemixCallScreen";
+    el.className = "gemix-call-screen";
+    document.body.appendChild(el);
+  }
+  let contact = window.gemixResolveContactForCall(callerName);
+  if (isIncoming && incomingCallData && incomingCallData.callerGemixNum) {
+    const byId = window.gemixResolveContactForCall(incomingCallData.callerGemixNum);
+    if (byId) contact = byId;
+  }
+  let displayName = callerName || "";
+  if (isIncoming && contact && contact.name) displayName = contact.name;
+  if (!displayName || displayName === "VIP Contact") displayName = (contact && contact.name) || "VIP Contact";
+
+  const initial = (contact && contact.initial) ? String(contact.initial).toUpperCase() : displayName.charAt(0).toUpperCase();
+  const avatarInner = (contact && contact.avatarUrl)
     ? `<img src="${contact.avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.remove()">`
     : initial;
-  const status=isIncoming?(isVideo?"Incoming Video Call...":"Incoming Call..."):(isVideo?"Calling Video...":"Calling...");
-  const footer=isIncoming
+  const status = isIncoming
+    ? (isVideo ? "Incoming Video Call..." : "Incoming Call...")
+    : (isVideo ? "Calling Video..." : "Calling...");
+  const footer = isIncoming
     ? `<div class="gemix-neo-row"><div class="gemix-neo-action"><button class="gemix-neo-btn decline" onclick="gemixDeclineFromCallScreen()">📵</button><span class="gemix-neo-label end">Decline</span></div><div class="gemix-neo-action"><button class="gemix-neo-btn accept" onclick="gemixAcceptFromCallScreen()">📞</button><span class="gemix-neo-label">Accept</span></div></div>`
     : `<div class="gemix-neo-row"><div class="gemix-neo-action"><button class="gemix-neo-btn" onclick="gemixNeoToggleMute(this)">🎤</button><span class="gemix-neo-label">Mute</span></div><div class="gemix-neo-action"><button class="gemix-neo-btn decline" onclick="gemixDeclineFromCallScreen()">📵</button><span class="gemix-neo-label end">End</span></div><div class="gemix-neo-action"><button class="gemix-neo-btn" onclick="gemixNeoToggleSpeaker(this)">🔊</button><span class="gemix-neo-label">Speaker</span></div></div>`;
-  el.innerHTML=`<div style="text-align:center"><div class="gemix-neo-name">${displayName}</div><div class="gemix-neo-status">${status}</div></div><div class="gemix-neo-avatar ringing">${avatarInner}</div>${footer}`;
+  el.innerHTML = `<div style="text-align:center"><div class="gemix-neo-name">${displayName}</div><div class="gemix-neo-status">${status}</div></div><div class="gemix-neo-avatar ringing">${avatarInner}</div>${footer}`;
   el.classList.add("show");
 };
-// ============ END V BUG FIX ============
+// ============ END NEOMORPHIC RECEIVER ============
