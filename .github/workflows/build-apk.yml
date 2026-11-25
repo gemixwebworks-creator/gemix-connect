@@ -24,9 +24,9 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
-      - name: Sync Capacitor and Build Debug APK
+      - name: Install Capacitor Android and Build Debug APK
         run: |
-          npm ci || npm install
+          npm install --no-save @capacitor/core @capacitor/cli @capacitor/android
           npx cap sync android
           cd android
           chmod +x gradlew
