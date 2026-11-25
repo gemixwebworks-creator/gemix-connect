@@ -2025,7 +2025,7 @@ window.closeLightbox = function () {
 
 function escapeHtml(text) {
   if (!text) return "";
-  const map = { "&": "&", "<": "<", ">": ">", '"': """, "'": "'" };
+  const map = { "&": "&", "<": "<", ">": ">", '"': '"', "'": "'" };
   return text.replace(/[&<>"']/g, (m) => map[m]);
 }
 
