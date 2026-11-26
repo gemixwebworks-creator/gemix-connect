@@ -78,52 +78,34 @@ let gemixRingtoneAudio = null;
 let gemixCallerTuneAudio = null;
 let gemixAudioCtx = null;
 
-function gemixGetSoundFile(kind) {
-  if (kind === "ringtone") {
-    const c = localStorage.getItem("gemix_custom_ringtone");
-    if (c) return c;
-    return "gemix-ringtone.wav";
-  }
-  if (kind === "caller") return "gemix-caller-tune.wav";
-  return "gemix-notification.wav";
-}
-
-function gemixPlayTone(kind, loop) {
-  try {
-    const a = new Audio(gemixGetSoundFile(kind));
-    a.loop = !!loop;
-    a.volume = 0.9;
-    a.play().catch(() => { window.playGemixSynthTone(kind); });
-    return a;
-  } catch (e) {
-    window.playGemixSynthTone(kind);
-    return null;
-  }
+function gemixGetCustomRingtoneFile() {
+  return localStorage.getItem("gemix_custom_ringtone") || "";
 }
 
 window.playGemixRingtone = function () {
-  if (gemixRingtoneAudio) gemixRingtoneAudio.pause();
-  gemixRingtoneAudio = gemixPlayTone("ringtone", true);
+  window.stopGemixRingtone();
+  const customSrc = gemixGetCustomRingtoneFile();
+  if (!customSrc) return;
+  try {
+    const a = new Audio(customSrc);
+    a.loop = true;
+    a.volume = 0.9;
+    a.play().catch(() => {});
+    gemixRingtoneAudio = a;
+  } catch (e) {}
 };
 window.stopGemixRingtone = function () {
   if (gemixRingtoneAudio) {
-    gemixRingtoneAudio.pause();
-    gemixRingtoneAudio.currentTime = 0;
+    try {
+      gemixRingtoneAudio.pause();
+      gemixRingtoneAudio.currentTime = 0;
+    } catch (e) {}
     gemixRingtoneAudio = null;
   }
 };
-window.playGemixNotification = function () { gemixPlayTone("notification", false); };
-window.playGemixCallerTune = function () {
-  if (gemixCallerTuneAudio) gemixCallerTuneAudio.pause();
-  gemixCallerTuneAudio = gemixPlayTone("caller", true);
-};
-window.stopGemixCallerTune = function () {
-  if (gemixCallerTuneAudio) {
-    gemixCallerTuneAudio.pause();
-    gemixCallerTuneAudio.currentTime = 0;
-    gemixCallerTuneAudio = null;
-  }
-};
+window.playGemixNotification = function () {};
+window.playGemixCallerTune = function () {};
+window.stopGemixCallerTune = function () {};
 window.setGemixCustomRingtoneFromFile = async function (event) {
   const file = event && event.target && event.target.files ? event.target.files[0] : null;
   if (!file) return;
@@ -180,13 +162,16 @@ function gemixFormatLastSeen(ts) {
   }
 }
 
+let gemixPresenceHooksBound = false;
+
 async function gemixSetMyPresence(isOnline) {
   if (!myProfile || !myProfile.gemixNum) return;
   try {
     await setDoc(doc(db, "users", myProfile.gemixNum), {
-      isOnline: isOnline,
+      online: !!isOnline,
+      isOnline: !!isOnline,
       lastSeen: serverTimestamp(),
-      inGemixApp: isOnline
+      inGemixApp: !!isOnline
     }, { merge: true });
   } catch (e) {}
 }
@@ -195,11 +180,27 @@ window.startGemixPresence = function () {
   gemixSetMyPresence(true);
   if (presenceHeartbeat) clearInterval(presenceHeartbeat);
   presenceHeartbeat = setInterval(() => gemixSetMyPresence(true), 30000);
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden) gemixSetMyPresence(false);
-    else gemixSetMyPresence(true);
-  });
-  window.addEventListener("beforeunload", () => { gemixSetMyPresence(false); });
+
+  if (!gemixPresenceHooksBound) {
+    gemixPresenceHooksBound = true;
+    document.addEventListener("visibilitychange", () => {
+      gemixSetMyPresence(!document.hidden);
+    });
+    window.addEventListener("pagehide", () => {
+      gemixSetMyPresence(false);
+    });
+    window.addEventListener("beforeunload", () => {
+      gemixSetMyPresence(false);
+    });
+    try {
+      const capApp = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+      if (capApp && typeof capApp.addListener === "function") {
+        capApp.addListener("appStateChange", ({ isActive }) => {
+          gemixSetMyPresence(!!isActive);
+        });
+      }
+    } catch (e) {}
+  }
 };
 
 window.listenToPeerPresence = function (peerGemixId) {
@@ -232,8 +233,6 @@ window.listenToPeerPresence = function (peerGemixId) {
   .gemix-call-avatar{width:120px;height:120px;border-radius:50%;background:#edf1f8;color:#4285d4;display:grid;place-items:center;font-size:44px;font-weight:800;box-shadow:0 0 0 8px rgba(66,133,212,.25),0 0 40px rgba(66,133,212,.6);animation:gemixPulse 1.6s infinite}
   @keyframes gemixPulse{0%{box-shadow:0 0 0 0 rgba(66,133,212,.5)}100%{box-shadow:0 0 0 22px rgba(66,133,212,0)}}
   .gemix-call-btn{width:64px;height:64px;border-radius:50%;border:none;font-size:24px;cursor:pointer;display:grid;place-items:center}
-  .gemix-proximity-overlay{position:fixed;inset:0;background:#000;z-index:1000;display:none}
-  .gemix-proximity-overlay.on{display:block}
   .gemix-ringtone-modal{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1001;display:none;align-items:flex-end;justify-content:center}
   .gemix-ringtone-modal.show{display:flex}
   .gemix-ringtone-box{background:#edf1f8;width:100%;max-width:420px;border-radius:22px 22px 0 0;padding:20px}
@@ -346,49 +345,7 @@ window.updateGemixRingtoneLabel = function () {
 // ============ END PHASE 2 ============
 
 
-// ============ PHASE 3: GROUP VIDEO AUTO-ADJUST + MASTER KEY RESTORE ============
-(function () {
-  if (document.getElementById("gemixPhase3Style")) return;
-  const st = document.createElement("style");
-  st.id = "gemixPhase3Style";
-  st.textContent = `
-  .gemix-group-video-grid{display:grid;gap:10px;width:100%;height:100%;padding:10px;box-sizing:border-box;grid-template-columns:1fr}
-  .gemix-group-video-grid[data-count="1"]{grid-template-columns:1fr}
-  .gemix-group-video-grid[data-count="2"]{grid-template-columns:1fr 1fr}
-  .gemix-group-video-grid[data-count="3"],.gemix-group-video-grid[data-count="4"]{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}
-  .gemix-group-video-grid[data-count="5"],.gemix-group-video-grid[data-count="6"]{grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr}
-  @media (orientation:portrait) and (max-width:600px){
-    .gemix-group-video-grid[data-count="2"],.gemix-group-video-grid[data-count="3"],.gemix-group-video-grid[data-count="4"]{grid-template-columns:1fr;grid-template-rows:repeat(auto-fit,minmax(0,1fr))}
-    .gemix-group-video-grid[data-count="5"],.gemix-group-video-grid[data-count="6"]{grid-template-columns:1fr 1fr}
-  }
-  @media (min-width:900px){
-    .gemix-group-video-grid[data-count="5"],.gemix-group-video-grid[data-count="6"]{grid-template-columns:1fr 1fr 1fr}
-    .gemix-group-video-grid[data-count="7"],.gemix-group-video-grid[data-count="8"],.gemix-group-video-grid[data-count="9"]{grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr}
-  }
-  .gemix-video-tile{position:relative;background:#1a202c;border-radius:16px;overflow:hidden;min-height:0;display:flex;align-items:center;justify-content:center;border:1.5px solid #d4af37}
-  .gemix-video-tile video{width:100%;height:100%;object-fit:cover;display:block}
-  `;
-  document.head.appendChild(st);
-})();
-
-window.gemixLayoutGroupVideo = function (containerId) {
-  const container = document.getElementById(containerId || "videoInnerContainer");
-  if (!container) return;
-  container.classList.add("gemix-group-video-grid");
-  const tiles = container.querySelectorAll("video, .gemix-video-tile, .selfie-pip-box");
-  tiles.forEach((t) => {
-    if (t.classList.contains("selfie-pip-box")) {
-      t.style.position = "relative";
-      t.style.width = "100%";
-      t.style.height = "100%";
-      t.style.bottom = "auto";
-      t.style.right = "auto";
-    }
-  });
-  container.setAttribute("data-count", String(tiles.length || 1));
-};
-window.addEventListener("resize", () => { window.gemixLayoutGroupVideo("videoInnerContainer"); });
-window.addEventListener("orientationchange", () => { setTimeout(() => window.gemixLayoutGroupVideo("videoInnerContainer"), 300); });
+// ============ PHASE 3: MASTER KEY RESTORE ============
 
 async function gemixSha256Hex(str) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
@@ -847,6 +804,8 @@ function startCloudListeners() {
         if (typeof window.playGemixRingtone === "function") window.playGemixRingtone();
       } else {
         document.getElementById("incomingCallBanner").classList.remove("show");
+        if (typeof window.hideGemixCallScreen === "function") window.hideGemixCallScreen();
+        if (typeof window.stopGemixRingtone === "function") window.stopGemixRingtone();
       }
     } else {
       document.getElementById("incomingCallBanner").classList.remove("show");
@@ -924,7 +883,13 @@ window.renderAllLists = function () {
   const groupListArea = document.getElementById("groupListArea");
 
   if (!chatList || !callList || !videoList || !groupListArea) return;
-  if (contacts.length === 0) return;
+  if (contacts.length === 0) {
+    chatList.innerHTML = `<div class="empty-state" id="chatEmptyState"><div class="empty-icon">💬</div><p style="font-size:14px; font-weight:600; color:#222835;">No Chats Yet</p><p style="font-size:12px;">Add a contact using + to start messaging</p></div>`;
+    callList.innerHTML = `<div class="empty-state" id="callEmptyState"><div class="empty-icon">📞</div><p style="font-size:14px; font-weight:600; color:#222835;">No Contacts Yet</p><p style="font-size:12px;">Tap + at the top right to add a VIP contact</p></div>`;
+    videoList.innerHTML = `<div class="empty-state" id="videoEmptyState"><div class="empty-icon">🎥</div><p style="font-size:14px; font-weight:600; color:#222835;">No Video Contacts</p><p style="font-size:12px;">Add contacts via + to start a private PiP video call</p></div>`;
+    groupListArea.innerHTML = `<div class="empty-state" id="groupEmptyState"><div class="empty-icon">👥</div><p style="font-size:14px; font-weight:600; color:#222835;">No Contacts Added</p><p style="font-size:12px;">Add VIP contacts to create a Group Conversation</p></div>`;
+    return;
+  }
 
   chatList.innerHTML = "";
   callList.innerHTML = "";
@@ -1101,6 +1066,7 @@ function appendMessageBubble(msg) {
 
   div.addEventListener("touchstart", startPress, { passive: true });
   div.addEventListener("touchend", cancelPress);
+  div.addEventListener("touchcancel", cancelPress);
   div.addEventListener("touchmove", cancelPress);
   div.addEventListener("mousedown", startPress);
   div.addEventListener("mouseup", cancelPress);
@@ -1626,11 +1592,6 @@ function attachCallHangupListener(docId, isVideo) {
 }
 
 window.initiateWebRTCCall = async function (peerName, peerGemixId, isVideo) {
-  if (typeof window.showGemixCallScreen === "function") window.showGemixCallScreen(peerName, isVideo, false);
-  setTimeout(() => {
-    if (typeof window.hideGemixCallScreen === "function") window.hideGemixCallScreen();
-    if (typeof window.startGemixProximitySensor === "function") window.startGemixProximitySensor();
-  }, 1500);
   currentCallDocId = peerGemixId;
   const screenId = isVideo ? "active-video-screen" : "active-call-screen";
   enterFullScreenView(screenId);
@@ -1652,9 +1613,6 @@ window.initiateWebRTCCall = async function (peerName, peerGemixId, isVideo) {
 
     if (isVideo) {
       setupVideoUI(localStream, null);
-      setTimeout(() => {
-        if (typeof window.gemixLayoutGroupVideo === "function") window.gemixLayoutGroupVideo("videoInnerContainer");
-      }, 200);
     }
 
     peerConnection = new RTCPeerConnection(rtcServers);
@@ -1724,7 +1682,6 @@ window.acceptIncomingCall = async function () {
   if (!incomingCallData) return;
   document.getElementById("incomingCallBanner").classList.remove("show");
   if (typeof window.hideGemixCallScreen === "function") window.hideGemixCallScreen();
-  if (typeof window.startGemixProximitySensor === "function") window.startGemixProximitySensor();
   if (typeof window.stopGemixRingtone === "function") window.stopGemixRingtone();
   if (typeof window.stopGemixCallerTune === "function") window.stopGemixCallerTune();
 
@@ -1750,9 +1707,6 @@ window.acceptIncomingCall = async function () {
 
     if (isVideo) {
       setupVideoUI(localStream, null);
-      setTimeout(() => {
-        if (typeof window.gemixLayoutGroupVideo === "function") window.gemixLayoutGroupVideo("videoInnerContainer");
-      }, 200);
     }
 
     peerConnection = new RTCPeerConnection(rtcServers);
@@ -1821,7 +1775,6 @@ window.declineIncomingCall = async function () {
 };
 
 window.endWebRTCCall = async function (returnScreenId) {
-  if (typeof window.stopGemixProximitySensor === "function") window.stopGemixProximitySensor();
   if (typeof window.hideGemixCallScreen === "function") window.hideGemixCallScreen();
   const docIdToEnd = currentCallDocId || (incomingCallData && incomingCallData.callerGemixNum);
   const myDocRef = doc(db, "calls", myProfile.gemixNum);
@@ -1916,23 +1869,40 @@ window.toggleVideo = function () {
 };
 
 window.switchCamera = async function () {
-  useFrontCamera = !useFrontCamera;
-  if (localStream) {
-    const videoTrack = localStream.getVideoTracks()[0];
-    if (videoTrack) videoTrack.stop();
+  const nextFront = !useFrontCamera;
+  try {
     const newStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: useFrontCamera ? "user" : "environment" }
+      video: { facingMode: nextFront ? "user" : "environment" }
     });
     const newVideoTrack = newStream.getVideoTracks()[0];
+    if (!newVideoTrack) return;
+
+    useFrontCamera = nextFront;
+
+    if (localStream) {
+      localStream.getVideoTracks().forEach((oldTrack) => {
+        oldTrack.stop();
+        localStream.removeTrack(oldTrack);
+      });
+      localStream.addTrack(newVideoTrack);
+    }
+
     if (peerConnection) {
       const sender = peerConnection.getSenders().find((s) => s.track && s.track.kind === "video");
-      if (sender) sender.replaceTrack(newVideoTrack);
+      if (sender) {
+        await sender.replaceTrack(newVideoTrack);
+      } else if (localStream) {
+        peerConnection.addTrack(newVideoTrack, localStream);
+      }
     }
+
     const pipVid = document.getElementById("selfieVideo");
     if (pipVid) {
-      pipVid.srcObject = newStream;
+      pipVid.srcObject = localStream || new MediaStream([newVideoTrack]);
       pipVid.style.transform = useFrontCamera ? "scaleX(-1)" : "scaleX(1)";
     }
+  } catch (e) {
+    showToast("Could not switch camera");
   }
 };
 
@@ -1988,14 +1958,82 @@ function updateSelectedCount() {
 }
 
 window.triggerGroupCall = function (type) {
+  if (type === "video") {
+    showToast("Group video call has been removed");
+    return;
+  }
   const checkedBoxes = document.querySelectorAll(".group-checkbox:checked");
   if (checkedBoxes.length === 0) {
     alert("Please select at least one contact!");
     return;
   }
   const names = Array.from(checkedBoxes).map((cb) => cb.value);
-  alert(`Starting Group ${type.toUpperCase()} Room with: ${names.join(", ")}`);
+  alert(`Starting Group VOICE Room with: ${names.join(", ")}`);
   toggleGroupMode();
+};
+
+let activeCallIsVideoMode = false;
+
+window.openAddToActiveCallModal = function (isVideo) {
+  activeCallIsVideoMode = !!isVideo;
+  const modal = document.getElementById("addToCallModal");
+  const title = document.getElementById("addToCallModalTitle");
+  const list = document.getElementById("addToCallContactsList");
+  if (!modal || !list) return;
+
+  if (title) {
+    title.innerText = activeCallIsVideoMode ? "Add to Video Call" : "Add to Voice Call";
+  }
+
+  const activePeerId = currentCallDocId || (incomingCallData && incomingCallData.callerGemixNum) || "";
+  const available = (contacts || []).filter((c) => String(c.gemixId) !== String(activePeerId) && String(c.gemixId) !== String(myProfile.gemixNum));
+
+  if (!available.length) {
+    list.innerHTML = `<p style="font-size:13px; color:#6c7382; text-align:center; padding:14px;">No other contacts available to add.</p>`;
+  } else {
+    list.innerHTML = "";
+    available.forEach((c) => {
+      const avatarContent = c.avatarUrl ? `<img src="${c.avatarUrl}" alt="Avatar">` : c.initial;
+      const safeName = (c.name || "VIP Contact").replace(/'/g, "\'");
+      list.innerHTML += `
+        <div class="share-friend-row" onclick="inviteContactToActiveCall('${safeName}', '${c.gemixId}', ${activeCallIsVideoMode})">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div class="avatar" style="width:36px; height:36px; font-size:14px;">${avatarContent}</div>
+            <div>
+              <div style="font-size:14px; font-weight:700; color:#222835;">${c.name}</div>
+              <div style="font-size:11px; color:#6c7382;">ID: ${c.gemixId}</div>
+            </div>
+          </div>
+          <span class="action-icon" style="padding:6px 12px; font-size:12px;">Add</span>
+        </div>
+      `;
+    });
+  }
+
+  modal.classList.add("open");
+};
+
+window.closeAddToCallModal = function () {
+  const modal = document.getElementById("addToCallModal");
+  if (modal) modal.classList.remove("open");
+};
+
+window.inviteContactToActiveCall = async function (peerName, peerGemixId, isVideo) {
+  if (!peerGemixId) return;
+  window.closeAddToCallModal();
+  showToast(`Inviting ${peerName} to call...`);
+  try {
+    await setDoc(doc(db, "calls", peerGemixId), {
+      callerGemixNum: myProfile.gemixNum,
+      callerName: myProfile.name,
+      invitedToCallDocId: currentCallDocId || myProfile.gemixNum,
+      isVideo: !!isVideo,
+      status: "ringing",
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+  } catch (e) {
+    showToast("Could not send call invite");
+  }
 };
 
 // Lightbox & utilities

@@ -40,7 +40,7 @@
 <div class="modal-overlay" id="newUserLoginModal">
   <div class="modal-box">
     <div class="modal-header">
-      <h3>💎 VIP User Login</h3>
+      <h3>💎 USER LOGIN</h3>
       <button class="cart-badge-icon" id="shopCartBtn" onclick="goToGemixShop()" title="Buy Gemix Number in Shop">🛒</button>
     </div>
 
@@ -203,11 +203,11 @@
   <div id="profile-screen" class="screen">
     <h2 class="screen-title">
       <span>My Profile</span>
-      <button class="action-icon" onclick="openLoginModal()">Edit Login</button>
+      <button class="action-icon" onclick="openLoginModal()">EDIT LOGIN</button>
     </h2>
     <div class="profile-card">
       <div class="profile-avatar-large" id="myProfileAvatarBox">👤</div>
-      <h3 style="color:#222835;" id="displayProfileName">VIP Member</h3>
+      <h3 style="color:#222835;" id="displayProfileName">YOUR INFO</h3>
       <div style="display:flex; gap:10px; width:100%; margin-top:6px;">
   <button class="action-icon" style="flex:1; padding:12px;" onclick="openGemixRingtoneSettings()">🔔 Ringtone Settings</button>
 </div>
@@ -247,7 +247,7 @@
       <div class="empty-state" id="chatEmptyState">
         <div class="empty-icon">💬</div>
         <p style="font-size:14px; font-weight:600; color:#222835;">No Chats Yet</p>
-        <p style="font-size:12px;">Add a VIP contact using + to start messaging</p>
+        <p style="font-size:12px;">Add a contact using + to start messaging</p>
       </div>
     </div>
   </div>
@@ -275,7 +275,7 @@
       <span style="font-size:13px; font-weight:700; color:#4285d4;" id="selectedCountText">0 selected</span>
       <div style="display:flex; gap:8px;">
         <button class="action-icon" style="background:#4285d4; color:#fff;" onclick="triggerGroupCall('voice')">📞 Voice Call</button>
-        <button class="action-icon" style="background:#4285d4; color:#fff;" onclick="triggerGroupCall('video')">🎥 Video Call</button>
+        
       </div>
     </div>
 
@@ -348,6 +348,10 @@
           <div class="btn-label">Mute</div>
         </div>
         <div class="btn-wrap">
+          <button class="vid-neumo-btn" id="voiceAddCallBtn" onclick="openAddToActiveCallModal(false)" title="Add Call">➕</button>
+          <div class="btn-label">Add Call</div>
+        </div>
+        <div class="btn-wrap">
           <button class="vid-end-neumo-btn" onclick="endWebRTCCall('call-screen')" title="End Call">📵</button>
           <div class="btn-label" style="color:#ff4b5c;">End</div>
         </div>
@@ -390,6 +394,11 @@
         </div>
 
         <div class="btn-wrap">
+          <button class="vid-neumo-btn" id="videoAddCallBtn" onclick="openAddToActiveCallModal(true)" title="Add Call">➕</button>
+          <div class="btn-label">Add Call</div>
+        </div>
+
+        <div class="btn-wrap">
           <button class="vid-end-neumo-btn" onclick="endWebRTCCall('video-screen')" title="End Call">📵</button>
           <div class="btn-label" style="color:#ff4b5c;">End</div>
         </div>
@@ -424,9 +433,18 @@
     <button class="neumo-btn">🎥</button>
     <div class="btn-label">Video</div>
   </div>
-  <div class="btn-wrap" id="tab-group" onclick="switchScreen('group-screen', this)">
-    <button class="neumo-btn">👥</button>
-    <div class="btn-label">Group</div>
+</div>
+
+
+<!-- 6. ADD CONTACT TO ACTIVE VOICE / VIDEO CALL MODAL -->
+<div class="modal-overlay" id="addToCallModal" onclick="if(event.target===this) closeAddToCallModal()">
+  <div class="modal-box" style="max-width:360px;">
+    <div class="modal-header">
+      <h3 id="addToCallModalTitle">Add to Call</h3>
+      <button class="close-modal" onclick="closeAddToCallModal()">✕</button>
+    </div>
+    <p style="font-size:12px; color:#6c7382; font-weight:600;">Select a contact to invite into this call:</p>
+    <div class="share-friends-list" id="addToCallContactsList"></div>
   </div>
 </div>
 
