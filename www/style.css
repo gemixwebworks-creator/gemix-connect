@@ -1418,3 +1418,18 @@ select,
   font-weight: 700;
   cursor: pointer;
 }
+
+
+/* High-DPI / compact screen safety for My Profile controls */
+#gemix-border-theme-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.gemix-border-swatch {
+  flex: 0 0 auto;
+}
