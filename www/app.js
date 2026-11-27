@@ -2696,3 +2696,89 @@ window.showGemixCallScreen = function (callerName, isVideo, isIncoming) {
     setTimeout(() => window.gemixHistoryStore.restoreToChat(), 150);
   }
 })();
+
+
+// === GEMIX SINGLE TICK, DOUBLE TICK & BLUE TICK CONTROLLER ===
+(() => {
+  const TICK_RANK = { sent: 1, delivered: 2, read: 3 };
+  const TICK_GLYPH = {
+    sent: "✓",
+    delivered: "✓✓",
+    read: "✓✓"
+  };
+
+  function normalizeStatus(status) {
+    if (status === "read" || status === "seen" || status === "blue") return "read";
+    if (status === "delivered" || status === "double") return "delivered";
+    return "sent";
+  }
+
+  function applyTickVisual(span, status) {
+    const norm = normalizeStatus(status);
+    span.setAttribute("data-tick", norm);
+    span.setAttribute("title", norm.toUpperCase());
+    span.textContent = TICK_GLYPH[norm];
+  }
+
+  function persistTickStatus(messageId, normStatus) {
+    if (!messageId) return;
+    try {
+      const raw = localStorage.getItem("gemix_offline_history_v1");
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed.items)) return;
+      let changed = false;
+      parsed.items = parsed.items.map((item) => {
+        if (item.id === messageId) {
+          const prevRank = TICK_RANK[normalizeStatus(item.tickStatus || "sent")] || 1;
+          const nextRank = TICK_RANK[normStatus] || 1;
+          if (nextRank >= prevRank) {
+            changed = true;
+            return { ...item, tickStatus: normStatus };
+          }
+        }
+        return item;
+      });
+      if (changed) {
+        localStorage.setItem("gemix_offline_history_v1", JSON.stringify(parsed));
+      }
+    } catch (e) {}
+  }
+
+  window.attachGemixTick = function (containerEl, messageId, initialStatus = "sent") {
+    if (!containerEl) return null;
+    const safeId = String(messageId || `msg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`);
+    containerEl.setAttribute("data-gemix-msg-id", safeId);
+
+    let tickEl = containerEl.querySelector(".gemix-msg-tick");
+    if (!tickEl) {
+      tickEl = document.createElement("span");
+      tickEl.className = "gemix-msg-tick";
+      containerEl.appendChild(tickEl);
+    }
+    applyTickVisual(tickEl, initialStatus);
+    persistTickStatus(safeId, normalizeStatus(initialStatus));
+    return tickEl;
+  };
+
+  window.setGemixMessageTick = function (messageId, status) {
+    if (!messageId) return;
+    const norm = normalizeStatus(status);
+    persistTickStatus(messageId, norm);
+
+    const escaped = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(String(messageId)) : String(messageId);
+    const matches = document.querySelectorAll(`[data-gemix-msg-id="${escaped}"]`);
+    matches.forEach((msgEl) => {
+      let tickEl = msgEl.querySelector(".gemix-msg-tick");
+      if (!tickEl) {
+        tickEl = document.createElement("span");
+        tickEl.className = "gemix-msg-tick";
+        msgEl.appendChild(tickEl);
+      }
+      const currentNorm = normalizeStatus(tickEl.getAttribute("data-tick") || "sent");
+      if ((TICK_RANK[norm] || 1) >= (TICK_RANK[currentNorm] || 1)) {
+        applyTickVisual(tickEl, norm);
+      }
+    });
+  };
+})();

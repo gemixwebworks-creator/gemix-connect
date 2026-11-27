@@ -1357,3 +1357,26 @@ select,
   border: 2px solid #ffffff !important;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
 }
+
+
+/* === GEMIX MESSAGE TICKS (SINGLE / DOUBLE / BLUE TICK) === */
+.gemix-msg-tick {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -1.5px;
+  line-height: 1;
+  user-select: none;
+}
+.gemix-msg-tick[data-tick="sent"] {
+  color: rgba(226, 232, 240, 0.72);
+}
+.gemix-msg-tick[data-tick="delivered"] {
+  color: rgba(248, 250, 252, 0.92);
+}
+.gemix-msg-tick[data-tick="read"] {
+  color: #38bdf8;
+  text-shadow: 0 0 8px rgba(56, 189, 248, 0.45);
+}
