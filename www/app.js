@@ -2381,17 +2381,9 @@ window.gemixNeoToggleMute = function (btn) {
 window.gemixNeoToggleSpeaker = function (btn) {
   const speakerOn = btn.classList.toggle("muted");
   btn.innerText = speakerOn ? "🔊" : "🔈";
-  const audioEl = document.getElementById("remoteAudioElement");
-  if (audioEl) {
-    audioEl.volume = 1.0;
-    audioEl.muted = false;
-    audioEl.play().catch(() => {});
+  if (typeof window.setGemixLocalSpeaker === "function") {
+    window.setGemixLocalSpeaker(speakerOn);
   }
-  try {
-    if (window.GemixAudio && typeof window.GemixAudio.setSpeaker === "function") {
-      window.GemixAudio.setSpeaker(!!speakerOn);
-    }
-  } catch (e) {}
 };
 
 window.gemixResolveContactForCall = function (nameOrId) {
@@ -3148,3 +3140,29 @@ window.showGemixCallScreen = function (callerName, isVideo, isIncoming) {
     syncProfilePanelVisibility();
   }
 })();
+
+
+let gemixLocalSpeakerEnabled = false;
+window.setGemixLocalSpeaker = function (enabled) {
+  gemixLocalSpeakerEnabled = !!enabled;
+  const audioEl = document.getElementById("remoteAudioElement");
+  if (audioEl) {
+    audioEl.muted = false;
+    audioEl.volume = gemixLocalSpeakerEnabled ? 1.0 : 0.85;
+    audioEl.play().catch(() => {});
+  }
+  try {
+    if (window.GemixAudio && typeof window.GemixAudio.setSpeaker === "function") {
+      window.GemixAudio.setSpeaker(gemixLocalSpeakerEnabled);
+    }
+  } catch (e) {}
+  const spkBtn = document.getElementById("voiceSpeakerBtn");
+  if (spkBtn) spkBtn.classList.toggle("active", gemixLocalSpeakerEnabled);
+  showToast(gemixLocalSpeakerEnabled ? "Speaker On" : "Earpiece On");
+};
+
+window.toggleLocalSpeaker = function (btnEl) {
+  const nextState = !gemixLocalSpeakerEnabled;
+  if (btnEl) btnEl.classList.toggle("active", nextState);
+  window.setGemixLocalSpeaker(nextState);
+};
