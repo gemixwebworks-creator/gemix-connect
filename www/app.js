@@ -2782,3 +2782,221 @@ window.showGemixCallScreen = function (callerName, isVideo, isIncoming) {
     });
   };
 })();
+
+
+// === GEMIX SMART OFFLINE CALL, PA CHIME & MISSED CALL ON RECONNECT ===
+(() => {
+  const PENDING_MISSED_KEY = "gemix_pending_missed_calls_v1";
+  let paCtx = null;
+
+  function playFlightAttentionChime(onDone) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) {
+      if (typeof onDone === "function") onDone();
+      return;
+    }
+    try {
+      if (!paCtx) paCtx = new AC();
+      if (paCtx.state === "suspended") paCtx.resume().catch(() => {});
+      const now = paCtx.currentTime;
+
+      // Two-tone flight announcement chime ("ding... ding...")
+      const notes = [
+        { freq: 659.25, start: 0.0, dur: 0.22 },
+        { freq: 523.25, start: 0.28, dur: 0.35 },
+        { freq: 659.25, start: 0.85, dur: 0.22 },
+        { freq: 523.25, start: 1.13, dur: 0.42 }
+      ];
+
+      notes.forEach((n) => {
+        const osc = paCtx.createOscillator();
+        const gain = paCtx.createGain();
+        osc.type = "sine";
+        const s = now + n.start;
+        const e = s + n.dur;
+        osc.frequency.setValueAtTime(n.freq, s);
+        gain.gain.setValueAtTime(0.0001, s);
+        gain.gain.linearRampToValueAtTime(0.12, s + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.0001, e);
+        osc.connect(gain);
+        gain.connect(paCtx.destination);
+        osc.start(s);
+        osc.stop(e + 0.03);
+      });
+
+      setTimeout(() => {
+        if (typeof onDone === "function") onDone();
+      }, 1600);
+    } catch (e) {
+      if (typeof onDone === "function") onDone();
+    }
+  }
+
+  function speakOfflineNoticeEnglish(text = "Attention please. The person you are calling is currently offline.") {
+    try {
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = "en-US";
+        utter.rate = 0.98;
+        utter.pitch = 1.0;
+        window.speechSynthesis.speak(utter);
+      }
+    } catch (e) {}
+  }
+
+  function readPendingMissed() {
+    try {
+      const raw = localStorage.getItem(PENDING_MISSED_KEY);
+      const list = raw ? JSON.parse(raw) : [];
+      return Array.isArray(list) ? list : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function writePendingMissed(list) {
+    try {
+      localStorage.setItem(PENDING_MISSED_KEY, JSON.stringify(list));
+    } catch (e) {}
+  }
+
+  function exitCallScreenBack() {
+    if (typeof window.stopGemixCallerTune === "function") window.stopGemixCallerTune();
+    if (typeof window.stopGemixRingtone === "function") window.stopGemixRingtone();
+    try {
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    } catch (e) {}
+
+    const panel = document.getElementById("gemix-offline-call-panel");
+    if (panel) panel.classList.remove("active");
+
+    if (typeof window.hangupCall === "function") {
+      try { window.hangupCall(); } catch (e) {}
+    }
+
+    const callScreen =
+      document.querySelector("#call-screen") ||
+      document.querySelector(".call-screen") ||
+      document.querySelector("#call-modal");
+    if (callScreen) {
+      callScreen.classList.remove("active", "open", "show");
+      callScreen.style.display = "none";
+    }
+  }
+
+  function ensureOfflinePanel(targetId, callType) {
+    let panel = document.getElementById("gemix-offline-call-panel");
+    if (!panel) {
+      panel = document.createElement("div");
+      panel.id = "gemix-offline-call-panel";
+      panel.innerHTML = `
+        <div class="gemix-offline-call-status">OFFLINE NOTICE</div>
+        <div id="gemix-offline-call-text" class="gemix-offline-call-msg">
+          Attention please. The person you are calling is currently offline.
+        </div>
+        <button id="gemix-send-missed-call-btn" type="button" class="gemix-missed-call-btn">
+          Send a Missed Call
+        </button>
+      `;
+      const host =
+        document.querySelector("#call-screen") ||
+        document.querySelector(".call-screen") ||
+        document.querySelector("#call-modal") ||
+        document.body;
+      host.appendChild(panel);
+    }
+
+    const btn = document.getElementById("gemix-send-missed-call-btn");
+    if (btn) {
+      btn.onclick = () => {
+        window.sendGemixOfflineMissedCall({ targetId, callType });
+      };
+    }
+    panel.classList.add("active");
+    return panel;
+  }
+
+  window.sendGemixOfflineMissedCall = function ({ targetId = "unknown", targetName = "User", callType = "audio" } = {}) {
+    const entry = {
+      id: `missed_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      targetId,
+      targetName,
+      callType,
+      ts: Date.now(),
+      deliveredWhenOnline: false
+    };
+
+    const list = readPendingMissed();
+    list.push(entry);
+    writePendingMissed(list);
+
+    if (window.gemixHistoryStore && typeof window.gemixHistoryStore.recordMessage === "function") {
+      window.gemixHistoryStore.recordMessage({
+        id: entry.id,
+        direction: "sent",
+        text: `Missed ${callType} call sent to ${targetName}`,
+        sender: "You",
+        ts: entry.ts
+      });
+    }
+
+    exitCallScreenBack();
+  };
+
+  // Call when a user transitions to ONLINE to surface missed call badge
+  window.handleGemixUserCameOnline = function (userId) {
+    const list = readPendingMissed();
+    const matching = list.filter((item) => !item.deliveredWhenOnline && (!userId || item.targetId === userId));
+    if (!matching.length) return matching;
+
+    const remaining = list.map((item) =>
+      !item.deliveredWhenOnline && (!userId || item.targetId === userId)
+        ? { ...item, deliveredWhenOnline: true }
+        : item
+    );
+    writePendingMissed(remaining);
+
+    const undeliveredCount = remaining.filter((x) => !x.deliveredWhenOnline).length + matching.length;
+    if (typeof window.updateGemixBadges === "function") {
+      window.updateGemixBadges({ missedCalls: undeliveredCount });
+    }
+    return matching;
+  };
+
+  // Entry point for audio & video calls: shows RINGING if online, or PA chime + English offline prompt if offline
+  window.startGemixSmartCall = function ({ targetId = "unknown", targetName = "User", isOnline = false, callType = "audio" } = {}) {
+    const statusEl =
+      document.querySelector("#call-status") ||
+      document.querySelector(".call-status");
+
+    if (isOnline) {
+      const panel = document.getElementById("gemix-offline-call-panel");
+      if (panel) panel.classList.remove("active");
+      if (statusEl) statusEl.textContent = "RINGING";
+      if (typeof window.startGemixCallerTune === "function") {
+        window.startGemixCallerTune();
+      }
+      return "RINGING";
+    }
+
+    // Target is offline: do NOT show "Calling"
+    if (typeof window.stopGemixCallerTune === "function") {
+      window.stopGemixCallerTune();
+    }
+    if (statusEl) {
+      statusEl.textContent = "OFFLINE";
+    }
+
+    const panel = ensureOfflinePanel(targetId, callType);
+    const msgEl = document.getElementById("gemix-offline-call-text");
+    const spoken = `Attention please. The person you are calling, ${targetName}, is currently offline.`;
+    if (msgEl) msgEl.textContent = spoken;
+
+    playFlightAttentionChime(() => {
+      speakOfflineNoticeEnglish(spoken);
+    });
+
+    return "OFFLINE_PROMPT";
+  };
+})();

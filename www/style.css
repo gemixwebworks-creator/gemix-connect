@@ -1380,3 +1380,41 @@ select,
   color: #38bdf8;
   text-shadow: 0 0 8px rgba(56, 189, 248, 0.45);
 }
+
+
+/* === GEMIX SMART OFFLINE CALL & MISSED CALL FLOW === */
+#gemix-offline-call-panel {
+  display: none;
+  margin-top: 14px;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1.5px solid var(--gemix-border, #38bdf8) !important;
+  background: rgba(9, 24, 44, 0.88);
+  color: #f8fafc;
+  text-align: center;
+}
+#gemix-offline-call-panel.active {
+  display: block;
+}
+.gemix-offline-call-status {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  margin-bottom: 6px;
+  color: #fbbf24;
+}
+.gemix-offline-call-msg {
+  font-size: 13px;
+  opacity: 0.92;
+  margin-bottom: 14px;
+}
+.gemix-missed-call-btn {
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 1.5px solid var(--gemix-border, #38bdf8) !important;
+  background: #0284c7;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
