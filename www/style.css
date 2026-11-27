@@ -1237,6 +1237,10 @@ html[data-gemix-border="purple"] {
 .chat-bubble,
 .message-bubble,
 .contact-card,
+.neumo-card,
+.detail-row,
+.profile-card,
+.profile-avatar-large,
 .btn,
 button,
 input,
@@ -1480,6 +1484,34 @@ select,
   background: rgba(16, 48, 82, 0.9);
   color: #ffffff;
   font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#gemixProfileCustomPanel {
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1.5px solid var(--gemix-border) !important;
+  background: rgba(237, 241, 248, 0.85);
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+}
+#gemixProfileCustomPanel .gemix-profile-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+#gemixProfileCustomPanel .gemix-tone-mini-btn {
+  padding: 7px 11px;
+  border-radius: 999px;
+  border: 1.5px solid var(--gemix-border) !important;
+  background: #edf1f8;
+  color: #222835;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
 }

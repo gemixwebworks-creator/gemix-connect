@@ -82,19 +82,36 @@ function gemixGetCustomRingtoneFile() {
   return localStorage.getItem("gemix_custom_ringtone") || "";
 }
 
+let gemixRingSynthInterval = null;
+let gemixCallerSynthInterval = null;
+
 window.playGemixRingtone = function () {
   window.stopGemixRingtone();
   const customSrc = gemixGetCustomRingtoneFile();
-  if (!customSrc) return;
-  try {
-    const a = new Audio(customSrc);
-    a.loop = true;
-    a.volume = 0.9;
-    a.play().catch(() => {});
-    gemixRingtoneAudio = a;
-  } catch (e) {}
+  if (customSrc) {
+    try {
+      const a = new Audio(customSrc);
+      a.loop = true;
+      a.volume = 0.9;
+      a.play().catch(() => {});
+      gemixRingtoneAudio = a;
+      return;
+    } catch (e) {}
+  }
+  if (typeof window.playGemixSynthTone === "function") {
+    window.playGemixSynthTone("ringtone");
+    gemixRingSynthInterval = setInterval(() => {
+      if (typeof window.playGemixSynthTone === "function") {
+        window.playGemixSynthTone("ringtone");
+      }
+    }, 1500);
+  }
 };
 window.stopGemixRingtone = function () {
+  if (gemixRingSynthInterval) {
+    clearInterval(gemixRingSynthInterval);
+    gemixRingSynthInterval = null;
+  }
   if (gemixRingtoneAudio) {
     try {
       gemixRingtoneAudio.pause();
@@ -103,9 +120,28 @@ window.stopGemixRingtone = function () {
     gemixRingtoneAudio = null;
   }
 };
-window.playGemixNotification = function () {};
-window.playGemixCallerTune = function () {};
-window.stopGemixCallerTune = function () {};
+window.playGemixNotification = function () {
+  if (typeof window.playGemixSynthTone === "function") {
+    window.playGemixSynthTone("notification");
+  }
+};
+window.playGemixCallerTune = function () {
+  window.stopGemixCallerTune();
+  if (typeof window.playGemixSynthTone === "function") {
+    window.playGemixSynthTone("caller");
+    gemixCallerSynthInterval = setInterval(() => {
+      if (typeof window.playGemixSynthTone === "function") {
+        window.playGemixSynthTone("caller");
+      }
+    }, 1800);
+  }
+};
+window.stopGemixCallerTune = function () {
+  if (gemixCallerSynthInterval) {
+    clearInterval(gemixCallerSynthInterval);
+    gemixCallerSynthInterval = null;
+  }
+};
 window.setGemixCustomRingtoneFromFile = async function (event) {
   const file = event && event.target && event.target.files ? event.target.files[0] : null;
   if (!file) return;
@@ -2999,4 +3035,104 @@ window.showGemixCallScreen = function (callerName, isVideo, isIncoming) {
 
     return "OFFLINE_PROMPT";
   };
+})();
+
+
+// === GEMIX PROFILE-ONLY BORDER THEME & RINGTONE / CALLER TUNE CONTROLS ===
+(() => {
+  const THEMES = {
+    sky: { label: "Sky Blue", hex: "#38bdf8" },
+    pink: { label: "Soft Pink", hex: "#f9a8d4" },
+    red: { label: "Red", hex: "#ef4444" },
+    black: { label: "Black", hex: "#090d16" },
+    white: { label: "White", hex: "#ffffff" },
+    purple: { label: "Soft Purple", hex: "#c084fc" }
+  };
+
+  function syncProfilePanelVisibility() {
+    const profileScreen = document.getElementById("profile-screen");
+    const card = profileScreen ? profileScreen.querySelector(".profile-card") : null;
+    if (!profileScreen || !card) return;
+
+    let panel = document.getElementById("gemixProfileCustomPanel");
+    if (!panel) {
+      panel = document.createElement("div");
+      panel.id = "gemixProfileCustomPanel";
+
+      const swatchRow = document.createElement("div");
+      swatchRow.className = "gemix-profile-btn-row";
+      Object.entries(THEMES).forEach(([key, cfg]) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "gemix-border-swatch";
+        b.title = cfg.label;
+        b.setAttribute("aria-label", cfg.label);
+        b.style.backgroundColor = cfg.hex;
+        b.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          if (typeof window.setGemixBorderTheme === "function") {
+            window.setGemixBorderTheme(key);
+          }
+        });
+        swatchRow.appendChild(b);
+      });
+
+      const toneRow = document.createElement("div");
+      toneRow.className = "gemix-profile-btn-row";
+
+      const ringBtn = document.createElement("button");
+      ringBtn.type = "button";
+      ringBtn.className = "gemix-tone-mini-btn";
+      ringBtn.textContent = "🔔 Ringtone";
+      ringBtn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        if (typeof window.playGemixRingtone === "function") window.playGemixRingtone();
+      });
+
+      const callerBtn = document.createElement("button");
+      callerBtn.type = "button";
+      callerBtn.className = "gemix-tone-mini-btn";
+      callerBtn.textContent = "📞 Caller Tune";
+      callerBtn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        if (typeof window.playGemixCallerTune === "function") window.playGemixCallerTune();
+      });
+
+      const stopBtn = document.createElement("button");
+      stopBtn.type = "button";
+      stopBtn.className = "gemix-tone-mini-btn";
+      stopBtn.textContent = "⏹ Stop Tone";
+      stopBtn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        if (typeof window.stopGemixRingtone === "function") window.stopGemixRingtone();
+        if (typeof window.stopGemixCallerTune === "function") window.stopGemixCallerTune();
+      });
+
+      toneRow.appendChild(ringBtn);
+      toneRow.appendChild(callerBtn);
+      toneRow.appendChild(stopBtn);
+
+      panel.appendChild(swatchRow);
+      panel.appendChild(toneRow);
+      card.appendChild(panel);
+    } else if (panel.parentElement !== card) {
+      card.appendChild(panel);
+    }
+
+    const isActive = profileScreen.classList.contains("active");
+    panel.style.display = isActive ? "flex" : "none";
+  }
+
+  // Hide any legacy floating border bar outside profile-screen
+  const legacyBar = document.getElementById("gemix-border-theme-bar");
+  if (legacyBar) legacyBar.remove();
+
+  document.addEventListener("click", () => {
+    setTimeout(syncProfilePanelVisibility, 30);
+  });
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", syncProfilePanelVisibility);
+  } else {
+    syncProfilePanelVisibility();
+  }
 })();
