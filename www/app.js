@@ -797,15 +797,25 @@ function startCloudListeners() {
       const callData = docSnap.data();
       if (callData.status === "ringing" && callData.callerGemixNum !== myProfile.gemixNum) {
         incomingCallData = callData;
+        const callTypeLabel = callData.isVideo ? "VIP Video Call" : "VIP Voice Call";
         document.getElementById("incomingCallerName").innerText = callData.callerName;
-        document.getElementById("incomingCallType").innerText = callData.isVideo ? "VIP Video Call" : "VIP Voice Call";
+        document.getElementById("incomingCallType").innerText = callTypeLabel;
         document.getElementById("incomingCallBanner").classList.add("show");
         if (typeof window.showGemixCallScreen === "function") window.showGemixCallScreen(callData.callerName, callData.isVideo, true);
         if (typeof window.playGemixRingtone === "function") window.playGemixRingtone();
+        try {
+          if (window.GemixNotify && typeof window.GemixNotify.showIncomingCallNotification === "function") {
+            window.GemixNotify.showIncomingCallNotification(callData.callerName || "Incoming Call", callTypeLabel);
+          }
+        } catch (e) {}
       } else {
         document.getElementById("incomingCallBanner").classList.remove("show");
         if (typeof window.hideGemixCallScreen === "function") window.hideGemixCallScreen();
-        if (typeof window.stopGemixRingtone === "function") window.stopGemixRingtone();
+        try {
+          if (window.GemixNotify && typeof window.GemixNotify.cancelCallNotification === "function") {
+            window.GemixNotify.cancelCallNotification();
+          }
+        } catch (e) {}
       }
     } else {
       document.getElementById("incomingCallBanner").classList.remove("show");
@@ -848,7 +858,8 @@ window.saveNewContact = async function () {
 
     let avatarUrl = "";
     if (userSnap.exists()) {
-      avatarUrl = userSnap.data().avatarUrl || "";
+      avatarUrl = extractPeerAvatar(userSnap.data());
+        if (avatarUrl) gemixAvatarCache.set(gemixId, avatarUrl);
     }
 
     const newContact = {
@@ -876,7 +887,93 @@ window.saveNewContact = async function () {
   }
 };
 
-window.renderAllLists = function () {
+let gemixAvatarRefreshRunning = false;
+const gemixAvatarCache = new Map();
+
+function extractPeerAvatar(userData) {
+  if (!userData || typeof userData !== "object") return "";
+  return userData.avatarUrl || userData.photoURL || userData.avatar || userData.profilePic || "";
+}
+
+window.openContactAvatarViewer = function (ev, imgSrc, titleText, subText) {
+  if (ev) {
+    ev.preventDefault();
+    ev.stopPropagation();
+  }
+  if (!imgSrc) return;
+
+  let modal = document.getElementById("gemixAvatarViewerModal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "gemixAvatarViewerModal";
+    modal.style.cssText = [
+      "position:fixed;inset:0;z-index:9999;background:rgba(4,12,24,0.92);",
+      "display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(8px);"
+    ].join("");
+
+    modal.innerHTML = `
+      <div id="gemixAvatarViewerCard" style="position:relative;max-width:420px;width:100%;background:#0b1d33;border:1.5px solid #e5b84b;border-radius:20px;padding:18px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,0.65);">
+        <button type="button" id="gemixAvatarViewerClose" aria-label="Close" style="position:absolute;top:12px;right:12px;width:36px;height:36px;border-radius:50%;border:1px solid rgba(229,184,75,0.5);background:rgba(255,255,255,0.08);color:#fff;font-size:18px;cursor:pointer;">✕</button>
+        <div id="gemixAvatarViewerTitle" style="color:#fff;font-size:17px;font-weight:700;margin-top:4px;padding-right:36px;"></div>
+        <div id="gemixAvatarViewerSub" style="color:#9ec5eb;font-size:12px;margin-top:2px;margin-bottom:14px;"></div>
+        <img id="gemixAvatarViewerImg" src="" alt="Profile Photo" style="width:100%;max-height:65vh;object-fit:contain;border-radius:14px;background:#06111f;border:1px solid rgba(255,255,255,0.1);" />
+      </div>
+    `;
+
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) window.closeContactAvatarViewer();
+    });
+    document.body.appendChild(modal);
+    document.getElementById("gemixAvatarViewerClose").addEventListener("click", () => {
+      window.closeContactAvatarViewer();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") window.closeContactAvatarViewer();
+    });
+  }
+
+  document.getElementById("gemixAvatarViewerImg").src = imgSrc;
+  document.getElementById("gemixAvatarViewerTitle").textContent = titleText || "Profile Photo";
+  document.getElementById("gemixAvatarViewerSub").textContent = subText || "";
+  modal.style.display = "flex";
+};
+
+window.closeContactAvatarViewer = function () {
+  const modal = document.getElementById("gemixAvatarViewerModal");
+  if (modal) modal.style.display = "none";
+};
+
+async function refreshContactsAvatarFromUsers() {
+  if (gemixAvatarRefreshRunning || !Array.isArray(contacts) || contacts.length === 0) return;
+  gemixAvatarRefreshRunning = true;
+  try {
+    let changed = false;
+    for (const c of contacts) {
+      if (!c || !c.gemixId) continue;
+      let latestUrl = gemixAvatarCache.get(c.gemixId);
+      if (latestUrl === undefined) {
+        try {
+          const snap = await getDoc(doc(db, "users", String(c.gemixId)));
+          latestUrl = snap.exists() ? extractPeerAvatar(snap.data()) : (c.avatarUrl || "");
+          gemixAvatarCache.set(c.gemixId, latestUrl || "");
+        } catch (e) {
+          latestUrl = c.avatarUrl || "";
+        }
+      }
+      if (latestUrl && c.avatarUrl !== latestUrl) {
+        c.avatarUrl = latestUrl;
+        changed = true;
+      }
+    }
+    if (changed) {
+      window.renderAllLists(true);
+    }
+  } finally {
+    gemixAvatarRefreshRunning = false;
+  }
+}
+
+window.renderAllLists = function (skipAvatarRefresh) {
   const chatList = document.getElementById("chatList");
   const callList = document.getElementById("callList");
   const videoList = document.getElementById("videoList");
@@ -895,12 +992,18 @@ window.renderAllLists = function () {
   callList.innerHTML = "";
   videoList.innerHTML = "";
   groupListArea.innerHTML = "";
+  if (!skipAvatarRefresh) { setTimeout(() => { if (typeof refreshContactsAvatarFromUsers === "function") refreshContactsAvatarFromUsers(); }, 0); }
 
   contacts.forEach((c) => {
     const safeName = c.name.replace(/'/g, "\\'");
     const safeNote = c.note ? c.note.replace(/'/g, "\\'") : "";
     const subtext = c.note ? c.note : "Tap to message";
-    const avatarContent = c.avatarUrl ? `<img src="${c.avatarUrl}" alt="Avatar">` : c.initial;
+    const safeViewerName = String(c.name || "").replace(/'/g, "\\'");
+    const safeViewerSub = String(c.gemixId || "").replace(/'/g, "\\'");
+    const safeViewerImg = String(c.avatarUrl || "").replace(/'/g, "\\'");
+    const avatarContent = c.avatarUrl
+      ? `<img src="${c.avatarUrl}" alt="Avatar" onclick="openContactAvatarViewer(event, '${safeViewerImg}', '${safeViewerName}', 'ID: ${safeViewerSub}')">`
+      : c.initial;
 
     chatList.innerHTML += `
       <div class="neumo-card" onclick="openChat('${safeName}', '${c.gemixId}', '${c.initial}', '${safeNote}')">
@@ -1165,7 +1268,12 @@ window.openForwardFriendsList = function () {
   container.innerHTML = "";
 
   contacts.forEach((c) => {
-    const avatarContent = c.avatarUrl ? `<img src="${c.avatarUrl}" alt="Avatar">` : c.initial;
+    const safeViewerName = String(c.name || "").replace(/'/g, "\\'");
+    const safeViewerSub = String(c.gemixId || "").replace(/'/g, "\\'");
+    const safeViewerImg = String(c.avatarUrl || "").replace(/'/g, "\\'");
+    const avatarContent = c.avatarUrl
+      ? `<img src="${c.avatarUrl}" alt="Avatar" onclick="openContactAvatarViewer(event, '${safeViewerImg}', '${safeViewerName}', 'ID: ${safeViewerSub}')">`
+      : c.initial;
     container.innerHTML += `
       <label class="share-friend-row">
         <div style="display:flex; align-items:center; gap:10px;">
@@ -1547,6 +1655,9 @@ function uploadWithTimeout(file) {
 
 // Two-way WebRTC signaling & synchronized call hangup
 function stopAllMediaAndTimers() {
+  if (typeof window.stopGemixRingtone === "function") window.stopGemixRingtone();
+  if (typeof window.stopGemixCallerTune === "function") window.stopGemixCallerTune();
+  try { if (window.GemixNotify && typeof window.GemixNotify.cancelCallNotification === "function") window.GemixNotify.cancelCallNotification(); } catch (e) {}
   clearInterval(videoTimerInterval);
   videoTimerInterval = null;
   videoSeconds = 0;
@@ -1628,7 +1739,7 @@ window.initiateWebRTCCall = async function (peerName, peerGemixId, isVideo) {
         }
       } else {
         const audioEl = document.getElementById("remoteAudioElement");
-        if (audioEl) audioEl.srcObject = remoteStream;
+        if (audioEl) { audioEl.srcObject = remoteStream; audioEl.muted = false; audioEl.play().catch(() => {}); try { if (window.GemixAudio && typeof window.GemixAudio.startCallAudio === "function") window.GemixAudio.startCallAudio(); } catch (e) {} }
       }
     };
 
@@ -1655,21 +1766,53 @@ window.initiateWebRTCCall = async function (peerName, peerGemixId, isVideo) {
 
     attachCallHangupListener(peerGemixId, isVideo);
 
+    const pendingAnswerCandidates = [];
+    let answerDescriptionApplied = false;
+
+    async function flushPendingAnswerCandidates() {
+      if (!peerConnection || !peerConnection.remoteDescription) return;
+      while (pendingAnswerCandidates.length > 0) {
+        const cand = pendingAnswerCandidates.shift();
+        try {
+          await peerConnection.addIceCandidate(new RTCIceCandidate(cand));
+        } catch (e) {}
+      }
+    }
+
     onSnapshot(callDocRef, async (snapshot) => {
       const data = snapshot.data();
-      if (peerConnection && !peerConnection.currentRemoteDescription && data && data.answer) {
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-        if (!isVideo) document.getElementById("callStatusText").innerText = "Connected";
-        else document.getElementById("videoStatusBadge").innerText = "Encrypted Call Active";
+      if (
+        peerConnection &&
+        !answerDescriptionApplied &&
+        peerConnection.signalingState === "have-local-offer" &&
+        data &&
+        data.answer
+      ) {
+        answerDescriptionApplied = true;
+        try {
+          await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+          await flushPendingAnswerCandidates();
+          if (!isVideo) document.getElementById("callStatusText").innerText = "Connected";
+          else document.getElementById("videoStatusBadge").innerText = "Encrypted Call Active";
+        } catch (e) {
+          answerDescriptionApplied = false;
+        }
       }
     });
 
-    onSnapshot(answerCandidates, (snapshot) => {
-      snapshot.docChanges().forEach((change) => {
+    onSnapshot(answerCandidates, async (snapshot) => {
+      for (const change of snapshot.docChanges()) {
         if (change.type === "added" && peerConnection) {
-          peerConnection.addIceCandidate(new RTCIceCandidate(change.doc.data()));
+          const candData = change.doc.data();
+          if (peerConnection.remoteDescription) {
+            try {
+              await peerConnection.addIceCandidate(new RTCIceCandidate(candData));
+            } catch (e) {}
+          } else {
+            pendingAnswerCandidates.push(candData);
+          }
         }
-      });
+      }
     });
   } catch (err) {
     alert("Camera/Mic permission required!");
@@ -1682,8 +1825,6 @@ window.acceptIncomingCall = async function () {
   if (!incomingCallData) return;
   document.getElementById("incomingCallBanner").classList.remove("show");
   if (typeof window.hideGemixCallScreen === "function") window.hideGemixCallScreen();
-  if (typeof window.stopGemixRingtone === "function") window.stopGemixRingtone();
-  if (typeof window.stopGemixCallerTune === "function") window.stopGemixCallerTune();
 
   const isVideo = incomingCallData.isVideo;
   currentCallDocId = myProfile.gemixNum;
@@ -1722,7 +1863,7 @@ window.acceptIncomingCall = async function () {
         }
       } else {
         const audioEl = document.getElementById("remoteAudioElement");
-        if (audioEl) audioEl.srcObject = remoteStream;
+        if (audioEl) { audioEl.srcObject = remoteStream; audioEl.muted = false; audioEl.play().catch(() => {}); try { if (window.GemixAudio && typeof window.GemixAudio.startCallAudio === "function") window.GemixAudio.startCallAudio(); } catch (e) {} }
       }
     };
 
@@ -1736,7 +1877,20 @@ window.acceptIncomingCall = async function () {
       }
     };
 
+    const pendingOfferCandidates = [];
+
+    async function flushPendingOfferCandidates() {
+      if (!peerConnection || !peerConnection.remoteDescription) return;
+      while (pendingOfferCandidates.length > 0) {
+        const cand = pendingOfferCandidates.shift();
+        try {
+          await peerConnection.addIceCandidate(new RTCIceCandidate(cand));
+        } catch (e) {}
+      }
+    }
+
     await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingCallData.offer));
+    await flushPendingOfferCandidates();
     const answerDescription = await peerConnection.createAnswer();
     await peerConnection.setLocalDescription(answerDescription);
 
@@ -1747,12 +1901,19 @@ window.acceptIncomingCall = async function () {
 
     attachCallHangupListener(myProfile.gemixNum, isVideo);
 
-    onSnapshot(offerCandidates, (snapshot) => {
-      snapshot.docChanges().forEach((change) => {
+    onSnapshot(offerCandidates, async (snapshot) => {
+      for (const change of snapshot.docChanges()) {
         if (change.type === "added" && peerConnection) {
-          peerConnection.addIceCandidate(new RTCIceCandidate(change.doc.data()));
+          const candData = change.doc.data();
+          if (peerConnection.remoteDescription) {
+            try {
+              await peerConnection.addIceCandidate(new RTCIceCandidate(candData));
+            } catch (e) {}
+          } else {
+            pendingOfferCandidates.push(candData);
+          }
         }
-      });
+      }
     });
   } catch (err) {
     stopAllMediaAndTimers();
@@ -1761,8 +1922,6 @@ window.acceptIncomingCall = async function () {
 };
 
 window.declineIncomingCall = async function () {
-  if (typeof window.stopGemixRingtone === "function") window.stopGemixRingtone();
-  if (typeof window.stopGemixCallerTune === "function") window.stopGemixCallerTune();
   document.getElementById("incomingCallBanner").classList.remove("show");
   const myDocRef = doc(db, "calls", myProfile.gemixNum);
   try {
@@ -1993,7 +2152,12 @@ window.openAddToActiveCallModal = function (isVideo) {
   } else {
     list.innerHTML = "";
     available.forEach((c) => {
-      const avatarContent = c.avatarUrl ? `<img src="${c.avatarUrl}" alt="Avatar">` : c.initial;
+      const safeViewerName = String(c.name || "").replace(/'/g, "\\'");
+    const safeViewerSub = String(c.gemixId || "").replace(/'/g, "\\'");
+    const safeViewerImg = String(c.avatarUrl || "").replace(/'/g, "\\'");
+    const avatarContent = c.avatarUrl
+      ? `<img src="${c.avatarUrl}" alt="Avatar" onclick="openContactAvatarViewer(event, '${safeViewerImg}', '${safeViewerName}', 'ID: ${safeViewerSub}')">`
+      : c.initial;
       const safeName = (c.name || "VIP Contact").replace(/'/g, "\'");
       list.innerHTML += `
         <div class="share-friend-row" onclick="inviteContactToActiveCall('${safeName}', '${c.gemixId}', ${activeCallIsVideoMode})">
@@ -2154,10 +2318,19 @@ window.gemixNeoToggleMute = function (btn) {
 };
 
 window.gemixNeoToggleSpeaker = function (btn) {
-  const on = btn.classList.toggle("muted");
-  btn.innerText = on ? "🔈" : "🔊";
+  const speakerOn = btn.classList.toggle("muted");
+  btn.innerText = speakerOn ? "🔊" : "🔈";
   const audioEl = document.getElementById("remoteAudioElement");
-  if (audioEl) audioEl.volume = on ? 1.0 : 0.7;
+  if (audioEl) {
+    audioEl.volume = 1.0;
+    audioEl.muted = false;
+    audioEl.play().catch(() => {});
+  }
+  try {
+    if (window.GemixAudio && typeof window.GemixAudio.setSpeaker === "function") {
+      window.GemixAudio.setSpeaker(!!speakerOn);
+    }
+  } catch (e) {}
 };
 
 window.gemixResolveContactForCall = function (nameOrId) {
