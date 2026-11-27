@@ -2275,6 +2275,7 @@ window.switchScreen = function (screenId, clickedElement) {
 
   document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
   document.getElementById(screenId).classList.add("active");
+  if (typeof window.__gemixSyncHook === "function") window.__gemixSyncHook();
 
   document.querySelectorAll(".btn-wrap, .neumo-btn, .nav-btn").forEach((el) => el.classList.remove("active"));
 
@@ -2509,29 +2510,8 @@ window.showGemixCallScreen = function (callerName, isVideo, isIncoming) {
   };
 
   function mountBorderSwitcher() {
-    if (document.getElementById("gemix-border-theme-bar")) return;
-    const host =
-      document.querySelector("#settings-view") ||
-      document.querySelector(".settings-panel") ||
-      document.querySelector("header") ||
-      document.body;
-
-    const bar = document.createElement("div");
-    bar.id = "gemix-border-theme-bar";
-    bar.className = "gemix-border-picker";
-    bar.setAttribute("aria-label", "Border color theme");
-
-    Object.entries(BORDER_THEMES).forEach(([name, hex]) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "gemix-border-swatch";
-      btn.style.backgroundColor = hex;
-      btn.title = `Border: ${name}`;
-      btn.addEventListener("click", () => window.setGemixBorderTheme(name));
-      bar.appendChild(btn);
-    });
-
-    host.appendChild(bar);
+    const legacy = document.getElementById("gemix-border-theme-bar");
+    if (legacy) legacy.remove();
   }
 
   function init() {
@@ -3049,9 +3029,19 @@ window.showGemixCallScreen = function (callerName, isVideo, isIncoming) {
     purple: { label: "Soft Purple", hex: "#c084fc" }
   };
 
+  function purgeNonProfileThemeBars(card) {
+    document.querySelectorAll("#gemix-border-theme-bar, .gemix-border-picker").forEach((el) => {
+      if (!card || !card.contains(el)) {
+        el.remove();
+      }
+    });
+  }
+
   function syncProfilePanelVisibility() {
     const profileScreen = document.getElementById("profile-screen");
     const card = profileScreen ? profileScreen.querySelector(".profile-card") : null;
+    purgeNonProfileThemeBars(card);
+
     if (!profileScreen || !card) return;
 
     let panel = document.getElementById("gemixProfileCustomPanel");
@@ -3119,16 +3109,14 @@ window.showGemixCallScreen = function (callerName, isVideo, isIncoming) {
       card.appendChild(panel);
     }
 
-    const isActive = profileScreen.classList.contains("active");
-    panel.style.display = isActive ? "flex" : "none";
+    const isProfileActive = profileScreen.classList.contains("active");
+    panel.style.setProperty("display", isProfileActive ? "flex" : "none", "important");
   }
 
-  // Hide any legacy floating border bar outside profile-screen
-  const legacyBar = document.getElementById("gemix-border-theme-bar");
-  if (legacyBar) legacyBar.remove();
+  window.__gemixSyncHook = syncProfilePanelVisibility;
 
   document.addEventListener("click", () => {
-    setTimeout(syncProfilePanelVisibility, 30);
+    setTimeout(syncProfilePanelVisibility, 25);
   });
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", syncProfilePanelVisibility);

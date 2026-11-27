@@ -1515,3 +1515,10 @@ select,
   font-weight: 700;
   cursor: pointer;
 }
+
+
+/* Hide theme bar on any screen except active #profile-screen */
+body:not(:has(#profile-screen.active)) #gemixProfileCustomPanel,
+#home-screen:not(.active) #gemixProfileCustomPanel {
+  display: none !important;
+}
