@@ -200,16 +200,20 @@ function gemixFormatLastSeen(ts) {
 
 let gemixPresenceHooksBound = false;
 
-async function gemixSetMyPresence(isOnline) {
+window.gemixSetMyPresence = async function (isOnline) {
   if (!myProfile || !myProfile.gemixNum) return;
+  const active = !!isOnline && !document.hidden;
   try {
     await setDoc(doc(db, "users", myProfile.gemixNum), {
-      online: !!isOnline,
-      isOnline: !!isOnline,
+      online: active,
+      isOnline: active,
       lastSeen: serverTimestamp(),
-      inGemixApp: !!isOnline
+      inGemixApp: active
     }, { merge: true });
   } catch (e) {}
+};
+async function gemixSetMyPresence(isOnline) {
+  return window.gemixSetMyPresence(isOnline);
 }
 
 window.startGemixPresence = function () {
@@ -245,13 +249,14 @@ window.listenToPeerPresence = function (peerGemixId) {
   presenceUnsubscribes[peerGemixId] = onSnapshot(doc(db, "users", peerGemixId), (snap) => {
     if (!snap.exists()) return;
     const data = snap.data();
+    const activeNow = !!(data.isOnline && data.online && data.inGemixApp !== false);
     const el = document.getElementById("chatUserStatus");
     if (el) {
-      el.innerText = data.isOnline ? "In Gemix App" : gemixFormatLastSeen(data.lastSeen);
-      el.style.color = data.isOnline ? "#2ecc71" : "#6c7382";
+      el.innerText = activeNow ? "In Gemix App" : gemixFormatLastSeen(data.lastSeen);
+      el.style.color = activeNow ? "#2ecc71" : "#6c7382";
     }
     document.querySelectorAll(`[data-gemixid="${peerGemixId}"] .gemix-online-dot`).forEach((dot) => {
-      dot.style.background = data.isOnline ? "#2ecc71" : "#c8ced8";
+      dot.style.background = activeNow ? "#2ecc71" : "#c8ced8";
     });
   });
 };
@@ -1129,8 +1134,16 @@ window.openChat = function (name, gemixId, avatarText, note) {
     currentMessagesMap = {};
     box.innerHTML = note ? `<div class="note-banner">Note: ${escapeHtml(note)}</div>` : "";
     snapshot.forEach((docSnap) => {
-      const msgData = { id: docSnap.id, chatId, ...docSnap.data() };
+      const raw = docSnap.data();
+      const msgData = { id: docSnap.id, chatId, ...raw };
       currentMessagesMap[docSnap.id] = msgData;
+      if (raw.senderGemixNum !== myProfile.gemixNum && raw.status !== "read") {
+        updateDoc(doc(db, "chats", chatId, "messages", docSnap.id), {
+          status: "read",
+          delivered: true,
+          readAt: serverTimestamp()
+        }).catch(() => {});
+      }
       appendMessageBubble(msgData);
     });
     box.scrollTop = box.scrollHeight;
@@ -1216,6 +1229,12 @@ function appendMessageBubble(msg) {
     openMsgActionModal(msg.id);
   });
 
+  if (isSent && typeof window.attachGemixTick === "function") {
+    const tickState = msg.status === "read"
+      ? "read"
+      : (msg.delivered || msg.status === "delivered" ? "delivered" : "sent");
+    window.attachGemixTick(div, msg.id, tickState);
+  }
   box.appendChild(div);
 }
 
@@ -1411,13 +1430,18 @@ window.sendMessage = async function () {
   toggleActionBtn();
 
   try {
-    await addDoc(collection(db, "chats", chatId, "messages"), {
+    const sentDoc = await addDoc(collection(db, "chats", chatId, "messages"), {
       senderGemixNum: myProfile.gemixNum,
       senderName: myProfile.name,
       type: "text",
       text,
+      status: "sent",
+      delivered: false,
       createdAt: serverTimestamp()
     });
+    if (typeof window.setGemixMessageTick === "function") {
+      setTimeout(() => window.setGemixMessageTick(sentDoc.id, "delivered"), 450);
+    }
   } catch (err) {}
 };
 

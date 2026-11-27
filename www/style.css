@@ -1522,3 +1522,13 @@ body:not(:has(#profile-screen.active)) #gemixProfileCustomPanel,
 #home-screen:not(.active) #gemixProfileCustomPanel {
   display: none !important;
 }
+
+.msg.sent .gemix-msg-tick {
+  float: right;
+  margin-left: 8px;
+  margin-top: 2px;
+  font-size: 13px;
+}
+.msg.sent .gemix-msg-tick[data-tick="read"] {
+  color: #7dd3fc !important;
+}
