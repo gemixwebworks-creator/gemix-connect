@@ -2382,3 +2382,135 @@ window.showGemixCallScreen = function (callerName, isVideo, isIncoming) {
   el.classList.add("show");
 };
 // ============ END NEOMORPHIC RECEIVER ============
+
+// === GEMIX NEOMORPHIC INCOMING CALL & BORDER-ONLY THEME SWITCHER ===
+(() => {
+  const BORDER_THEMES = {
+    sky: "#38bdf8",
+    pink: "#f9a8d4",
+    red: "#ef4444",
+    black: "#090d16",
+    white: "#ffffff",
+    purple: "#c084fc"
+  };
+  const STORAGE_KEY = "gemix_ui_border_theme";
+
+  window.setGemixBorderTheme = function (themeName) {
+    const key = Object.prototype.hasOwnProperty.call(BORDER_THEMES, themeName)
+      ? themeName
+      : "sky";
+    document.documentElement.setAttribute("data-gemix-border", key);
+    document.documentElement.style.setProperty("--gemix-border", BORDER_THEMES[key]);
+    try {
+      localStorage.setItem(STORAGE_KEY, key);
+    } catch (e) {}
+  };
+
+  function ensureIncomingCallModal() {
+    let modal = document.getElementById("gemix-neomorphic-incoming-call");
+    if (modal) return modal;
+
+    modal = document.createElement("div");
+    modal.id = "gemix-neomorphic-incoming-call";
+    modal.innerHTML = `
+      <div class="gemix-neo-call-card">
+        <div class="gemix-neo-call-avatar-wrap">
+          <img id="gemix-neo-caller-avatar" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%2316324f'/><circle cx='50' cy='38' r='18' fill='%2393c5fd'/><path d='M20 86c4-18 56-18 60 0' fill='%2393c5fd'/></svg>" alt="Caller" />
+        </div>
+        <div id="gemix-neo-caller-name" class="gemix-neo-call-name">Incoming Call</div>
+        <div id="gemix-neo-call-label" class="gemix-neo-call-type">Gemix Voice / Video Call</div>
+        <div class="gemix-neo-call-actions">
+          <button id="gemix-neo-decline-btn" type="button" class="gemix-neo-action-btn decline" title="Decline">✕</button>
+          <button id="gemix-neo-accept-btn" type="button" class="gemix-neo-action-btn accept" title="Accept">✓</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    document.getElementById("gemix-neo-decline-btn").addEventListener("click", () => {
+      window.hideGemixIncomingCall();
+      if (typeof window.hangupCall === "function") {
+        window.hangupCall();
+      } else if (typeof window.rejectCall === "function") {
+        window.rejectCall();
+      }
+    });
+
+    document.getElementById("gemix-neo-accept-btn").addEventListener("click", () => {
+      window.hideGemixIncomingCall();
+      if (typeof window.acceptCall === "function") {
+        window.acceptCall();
+      } else if (typeof window.answerCall === "function") {
+        window.answerCall();
+      }
+    });
+
+    return modal;
+  }
+
+  window.showGemixIncomingCall = function ({ name = "Incoming Call", label = "Incoming Call", avatar = "" } = {}) {
+    const modal = ensureIncomingCallModal();
+    const nameEl = document.getElementById("gemix-neo-caller-name");
+    const labelEl = document.getElementById("gemix-neo-call-label");
+    const avatarEl = document.getElementById("gemix-neo-caller-avatar");
+
+    if (nameEl) nameEl.textContent = name || "Incoming Call";
+    if (labelEl) labelEl.textContent = label || "Incoming Call";
+    if (avatarEl && avatar) avatarEl.src = avatar;
+
+    modal.classList.add("active");
+    if (typeof window.playGemixRingtone === "function") {
+      window.playGemixRingtone();
+    }
+  };
+
+  window.hideGemixIncomingCall = function () {
+    const modal = document.getElementById("gemix-neomorphic-incoming-call");
+    if (modal) modal.classList.remove("active");
+    if (typeof window.stopGemixRingtone === "function") {
+      window.stopGemixRingtone();
+    }
+  };
+
+  function mountBorderSwitcher() {
+    if (document.getElementById("gemix-border-theme-bar")) return;
+    const host =
+      document.querySelector("#settings-view") ||
+      document.querySelector(".settings-panel") ||
+      document.querySelector("header") ||
+      document.body;
+
+    const bar = document.createElement("div");
+    bar.id = "gemix-border-theme-bar";
+    bar.className = "gemix-border-picker";
+    bar.setAttribute("aria-label", "Border color theme");
+
+    Object.entries(BORDER_THEMES).forEach(([name, hex]) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "gemix-border-swatch";
+      btn.style.backgroundColor = hex;
+      btn.title = `Border: ${name}`;
+      btn.addEventListener("click", () => window.setGemixBorderTheme(name));
+      bar.appendChild(btn);
+    });
+
+    host.appendChild(bar);
+  }
+
+  function init() {
+    let saved = "sky";
+    try {
+      saved = localStorage.getItem(STORAGE_KEY) || "sky";
+    } catch (e) {}
+    window.setGemixBorderTheme(saved);
+    ensureIncomingCallModal();
+    mountBorderSwitcher();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
