@@ -218,6 +218,12 @@ async function gemixSetMyPresence(isOnline) {
 
 window.startGemixPresence = function () {
   gemixSetMyPresence(true);
+    try {
+      if (window.GemixNativeBg && typeof window.GemixNativeBg.registerBackgroundUser === "function" && myProfile && myProfile.gemixNum) {
+        window.GemixNativeBg.registerBackgroundUser(String(myProfile.gemixNum), String(myProfile.name || ""));
+      }
+    } catch (e) {}
+
   if (presenceHeartbeat) clearInterval(presenceHeartbeat);
   presenceHeartbeat = setInterval(() => gemixSetMyPresence(true), 30000);
 
