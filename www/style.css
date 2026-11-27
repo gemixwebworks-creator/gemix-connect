@@ -1532,3 +1532,10 @@ body:not(:has(#profile-screen.active)) #gemixProfileCustomPanel,
 .msg.sent .gemix-msg-tick[data-tick="read"] {
   color: #7dd3fc !important;
 }
+
+#active-call-screen #gemix-offline-call-panel.active {
+  position: relative;
+  z-index: 25;
+  width: 100%;
+  max-width: 360px;
+}

@@ -1762,6 +1762,23 @@ function attachCallHangupListener(docId, isVideo) {
   });
 }
 
+
+async function gemixCheckPeerOnline(peerGemixId) {
+  if (!peerGemixId) return false;
+  try {
+    const snap = await getDoc(doc(db, "users", String(peerGemixId)));
+    if (!snap.exists()) return false;
+    const d = snap.data() || {};
+    const lastSeenMs = d.lastSeen && typeof d.lastSeen.toMillis === "function"
+      ? d.lastSeen.toMillis()
+      : (d.lastSeen ? new Date(d.lastSeen).getTime() : 0);
+    const recentHeartbeat = lastSeenMs > 0 && (Date.now() - lastSeenMs) < 90000;
+    return !!(d.isOnline || d.online || (d.inGemixApp && recentHeartbeat));
+  } catch (e) {
+    return false;
+  }
+}
+
 window.initiateWebRTCCall = async function (peerName, peerGemixId, isVideo) {
   currentCallDocId = peerGemixId;
   const screenId = isVideo ? "active-video-screen" : "active-call-screen";
@@ -1773,7 +1790,24 @@ window.initiateWebRTCCall = async function (peerName, peerGemixId, isVideo) {
     startVideoTimer();
   } else {
     document.getElementById("callUserName").innerText = peerName;
-    document.getElementById("callStatusText").innerText = "Calling...";
+    document.getElementById("callStatusText").innerText = "Checking status...";
+  }
+
+  const peerOnline = await gemixCheckPeerOnline(peerGemixId);
+  if (!isVideo) {
+    if (peerOnline) {
+      document.getElementById("callStatusText").innerText = "RINGING";
+      if (typeof window.playGemixCallerTune === "function") window.playGemixCallerTune();
+    } else if (typeof window.startGemixSmartCall === "function") {
+      window.startGemixSmartCall({
+        targetId: peerGemixId,
+        targetName: peerName,
+        isOnline: false,
+        callType: "audio"
+      });
+    }
+  } else {
+    document.getElementById("videoStatusBadge").innerText = peerOnline ? "RINGING..." : "OFFLINE";
   }
 
   try {
@@ -2999,6 +3033,7 @@ window.showGemixCallScreen = function (callerName, isVideo, isIncoming) {
   // Entry point for audio & video calls: shows RINGING if online, or PA chime + English offline prompt if offline
   window.startGemixSmartCall = function ({ targetId = "unknown", targetName = "User", isOnline = false, callType = "audio" } = {}) {
     const statusEl =
+      document.getElementById("callStatusText") ||
       document.querySelector("#call-status") ||
       document.querySelector(".call-status");
 
@@ -3006,8 +3041,8 @@ window.showGemixCallScreen = function (callerName, isVideo, isIncoming) {
       const panel = document.getElementById("gemix-offline-call-panel");
       if (panel) panel.classList.remove("active");
       if (statusEl) statusEl.textContent = "RINGING";
-      if (typeof window.startGemixCallerTune === "function") {
-        window.startGemixCallerTune();
+      if (typeof window.playGemixCallerTune === "function") {
+        window.playGemixCallerTune();
       }
       return "RINGING";
     }
