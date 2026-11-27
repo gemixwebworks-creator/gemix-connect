@@ -2514,3 +2514,185 @@ window.showGemixCallScreen = function (callerName, isVideo, isIncoming) {
     init();
   }
 })();
+
+
+// === GEMIX OFFLINE-FIRST LOCAL HISTORY CACHE (MESSAGES, VOICE, MEDIA, DOCS) ===
+(() => {
+  const HISTORY_KEY = "gemix_offline_history_v1";
+  const MAX_ITEMS = 500;
+
+  function readStore() {
+    try {
+      const raw = localStorage.getItem(HISTORY_KEY);
+      if (!raw) return { items: [] };
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed.items) ? parsed : { items: [] };
+    } catch (e) {
+      return { items: [] };
+    }
+  }
+
+  function writeStore(store) {
+    try {
+      const trimmed = {
+        items: (store.items || []).slice(-MAX_ITEMS)
+      };
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(trimmed));
+    } catch (e) {
+      // If quota is exceeded due to large media/file payload, keep text/metadata items safely
+      try {
+        const lightweight = {
+          items: (store.items || []).slice(-MAX_ITEMS).map((it) => {
+            if (it.dataUrl && it.dataUrl.length > 250000) {
+              const { dataUrl, ...rest } = it;
+              return { ...rest, largeMediaSkippedInLocal: true };
+            }
+            return it;
+          })
+        };
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(lightweight));
+      } catch (err2) {}
+    }
+  }
+
+  function upsertEntry(entry) {
+    if (!entry) return null;
+    const store = readStore();
+    const id =
+      entry.id ||
+      `${entry.kind || "msg"}_${entry.direction || "sync"}_${entry.ts || Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+    const normalized = {
+      id,
+      kind: entry.kind || "message", // "message" | "voice" | "media" | "document"
+      direction: entry.direction || "received", // "sent" | "received" | "synced"
+      chatId: entry.chatId || "default",
+      sender: entry.sender || "",
+      text: entry.text || "",
+      fileName: entry.fileName || "",
+      mimeType: entry.mimeType || "",
+      fileSize: entry.fileSize || 0,
+      durationSec: entry.durationSec || 0,
+      url: entry.url || "",
+      dataUrl: entry.dataUrl || "",
+      ts: Number(entry.ts || Date.now())
+    };
+
+    const idx = store.items.findIndex((x) => x.id === id);
+    if (idx >= 0) {
+      store.items[idx] = { ...store.items[idx], ...normalized };
+    } else {
+      store.items.push(normalized);
+    }
+
+    store.items.sort((a, b) => (a.ts || 0) - (b.ts || 0));
+    writeStore(store);
+    return normalized;
+  }
+
+  function renderRestoredEntry(item) {
+    if (!item) return;
+    if (item.kind === "voice") {
+      const src = item.dataUrl || item.url;
+      if (src && typeof window.appendGemixVoiceNote === "function") {
+        window.appendGemixVoiceNote(
+          src,
+          item.durationSec || 0,
+          item.sender || (item.direction === "sent" ? "You" : "Contact")
+        );
+      }
+      return;
+    }
+
+    const host =
+      document.querySelector("#chat-messages") ||
+      document.querySelector(".chat-messages") ||
+      document.querySelector("#messages-list");
+    if (!host) return;
+
+    const existing = host.querySelector(`[data-gemix-hist-id="${CSS.escape(item.id)}"]`);
+    if (existing) return;
+
+    const row = document.createElement("div");
+    row.setAttribute("data-gemix-hist-id", item.id);
+    row.className = `gemix-restored-item gemix-dir-${item.direction || "received"}`;
+    row.style.cssText =
+      "margin:6px 0;padding:8px 12px;border-radius:12px;border:1px solid var(--gemix-border, #38bdf8);font-size:13px;";
+
+    const tag = item.direction === "sent" ? "Sent" : "Received";
+    if (item.kind === "document" || item.kind === "media") {
+      const namePart = item.fileName || item.kind.toUpperCase();
+      row.textContent = `[${tag} ${item.kind.toUpperCase()}] ${namePart}${item.text ? " — " + item.text : ""}`;
+    } else {
+      row.textContent = `[${tag}] ${item.text || ""}`;
+    }
+    host.appendChild(row);
+  }
+
+  window.gemixHistoryStore = {
+    recordMessage: (payload) => upsertEntry({ ...payload, kind: "message" }),
+    recordVoiceNote: (payload) => upsertEntry({ ...payload, kind: "voice" }),
+    recordMedia: (payload) => upsertEntry({ ...payload, kind: "media" }),
+    recordDocument: (payload) => upsertEntry({ ...payload, kind: "document" }),
+    getAll: () => readStore().items,
+    mergeRemoteItems: (remoteList = []) => {
+      if (!Array.isArray(remoteList)) return readStore().items;
+      remoteList.forEach((remoteItem) => {
+        upsertEntry({ ...remoteItem, direction: remoteItem.direction || "synced" });
+      });
+      return readStore().items;
+    },
+    restoreToChat: (chatId = null) => {
+      const items = readStore().items.filter((it) => !chatId || it.chatId === chatId);
+      items.forEach(renderRestoredEntry);
+      return items;
+    }
+  };
+
+  // Auto-hook voice notes so every recorded/appended voice note is cached locally
+  const origAppendVoice = window.appendGemixVoiceNote;
+  if (typeof origAppendVoice === "function" && !origAppendVoice.__gemixCached) {
+    const wrappedVoice = function (audioUrl, durationSec = 0, senderLabel = "Voice Note") {
+      const res = origAppendVoice.apply(this, arguments);
+      try {
+        const entry = {
+          kind: "voice",
+          direction: senderLabel === "You" ? "sent" : "received",
+          sender: senderLabel,
+          durationSec,
+          url: typeof audioUrl === "string" ? audioUrl : ""
+        };
+        if (typeof audioUrl === "string" && audioUrl.startsWith("blob:")) {
+          fetch(audioUrl)
+            .then((r) => r.blob())
+            .then((blob) => {
+              if (blob.size > 400000) {
+                upsertEntry(entry);
+                return;
+              }
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                upsertEntry({ ...entry, dataUrl: String(reader.result || "") });
+              };
+              reader.readAsDataURL(blob);
+            })
+            .catch(() => upsertEntry(entry));
+        } else {
+          upsertEntry(entry);
+        }
+      } catch (e) {}
+      return res;
+    };
+    wrappedVoice.__gemixCached = true;
+    window.appendGemixVoiceNote = wrappedVoice;
+  }
+
+  // Restore cached history when DOM/page loads (works even when offline)
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      setTimeout(() => window.gemixHistoryStore.restoreToChat(), 150);
+    });
+  } else {
+    setTimeout(() => window.gemixHistoryStore.restoreToChat(), 150);
+  }
+})();
