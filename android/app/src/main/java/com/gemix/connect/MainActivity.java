@@ -44,7 +44,6 @@ public class MainActivity extends BridgeActivity {
             this.bridge.getWebView().addJavascriptInterface(new GemixNotifyBridge(), "GemixNotify");
         }
 
-        promptOverlayOnceIfNeeded();
     }
 
     private void promptOverlayOnceIfNeeded() {
