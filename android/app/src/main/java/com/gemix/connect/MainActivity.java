@@ -65,7 +65,7 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
-    protected void onDestroy() {
+    public void onDestroy() {
         String savedNum = getSharedPreferences("gemix_bg_prefs", MODE_PRIVATE).getString("gemixNum", "");
         if (savedNum != null && !savedNum.isEmpty()) {
             GemixBackgroundService.startService(getApplicationContext(), savedNum, "");
