@@ -39,6 +39,32 @@ let longPressTimer = null;
 let peerConnection = null;
 let currentCallDocId = null;
 let incomingCallData = null;
+
+function gemixGetVideoConstraints(isFront) {
+  return {
+    facingMode: isFront ? "user" : "environment",
+    width: { ideal: 640, max: 720 },
+    height: { ideal: 480, max: 540 },
+    frameRate: { ideal: 24, max: 24 }
+  };
+}
+
+async function gemixTuneVideoSender(pc) {
+  if (!pc || typeof pc.getSenders !== "function") return;
+  try {
+    const sender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
+    if (!sender || typeof sender.getParameters !== "function" || typeof sender.setParameters !== "function") return;
+    const params = sender.getParameters();
+    if (!params.encodings || !params.encodings.length) {
+      params.encodings = [{}];
+    }
+    params.encodings[0].maxBitrate = 550000;
+    params.encodings[0].maxFramerate = 24;
+    params.degradationPreference = "maintain-framerate";
+    await sender.setParameters(params);
+  } catch (e) {}
+}
+
 const rtcServers = {
   iceServers: [
     { urls: ["stun:stun1.l.google.com:19302", "stun:stun2.l.google.com:19302"] }
@@ -1818,7 +1844,7 @@ window.initiateWebRTCCall = async function (peerName, peerGemixId, isVideo) {
 
   try {
     localStream = await navigator.mediaDevices.getUserMedia({
-      video: isVideo ? { facingMode: useFrontCamera ? "user" : "environment" } : false,
+      video: isVideo ? gemixGetVideoConstraints(useFrontCamera) : false,
       audio: true
     });
 
@@ -1828,6 +1854,7 @@ window.initiateWebRTCCall = async function (peerName, peerGemixId, isVideo) {
 
     peerConnection = new RTCPeerConnection(rtcServers);
     localStream.getTracks().forEach((track) => peerConnection.addTrack(track, localStream));
+    if (isVideo) await gemixTuneVideoSender(peerConnection);
 
     peerConnection.ontrack = (event) => {
       remoteStream = event.streams[0];
@@ -1942,7 +1969,7 @@ window.acceptIncomingCall = async function () {
 
   try {
     localStream = await navigator.mediaDevices.getUserMedia({
-      video: isVideo ? { facingMode: useFrontCamera ? "user" : "environment" } : false,
+      video: isVideo ? gemixGetVideoConstraints(useFrontCamera) : false,
       audio: true
     });
 
@@ -1952,6 +1979,7 @@ window.acceptIncomingCall = async function () {
 
     peerConnection = new RTCPeerConnection(rtcServers);
     localStream.getTracks().forEach((track) => peerConnection.addTrack(track, localStream));
+    if (isVideo) await gemixTuneVideoSender(peerConnection);
 
     peerConnection.ontrack = (event) => {
       remoteStream = event.streams[0];
@@ -2131,7 +2159,7 @@ window.switchCamera = async function () {
   const nextFront = !useFrontCamera;
   try {
     const newStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: nextFront ? "user" : "environment" }
+      video: gemixGetVideoConstraints(nextFront)
     });
     const newVideoTrack = newStream.getVideoTracks()[0];
     if (!newVideoTrack) return;
@@ -2150,6 +2178,7 @@ window.switchCamera = async function () {
       const sender = peerConnection.getSenders().find((s) => s.track && s.track.kind === "video");
       if (sender) {
         await sender.replaceTrack(newVideoTrack);
+        await gemixTuneVideoSender(peerConnection);
       } else if (localStream) {
         peerConnection.addTrack(newVideoTrack, localStream);
       }
