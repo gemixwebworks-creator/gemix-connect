@@ -20,10 +20,10 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class GemixBackgroundService extends Service {
     public static final String CHANNEL_SERVICE_ID = "gemix_bg_service_channel";
@@ -195,22 +195,49 @@ public class GemixBackgroundService extends Service {
     }
 
     private String extractStringField(String json, String fieldName) {
-        Pattern p = Pattern.compile("\"" + Pattern.quote(fieldName) + "\"\s*:\s*\{\s*\"stringValue\"\s*:\s*\"([^\"]*)\"");
-        Matcher m = p.matcher(json);
-        return m.find() ? m.group(1) : "";
+        String key = "\"" + fieldName + "\"";
+        int keyIdx = json.indexOf(key);
+        if (keyIdx < 0) return "";
+        int strKeyIdx = json.indexOf("\"stringValue\"", keyIdx + key.length());
+        if (strKeyIdx < 0) return "";
+        int colonIdx = json.indexOf(":", strKeyIdx + "\"stringValue\"".length());
+        if (colonIdx < 0) return "";
+        int firstQuote = json.indexOf("\"", colonIdx + 1);
+        if (firstQuote < 0) return "";
+        StringBuilder out = new StringBuilder();
+        boolean escaped = false;
+        for (int i = firstQuote + 1; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (escaped) {
+                out.append(c);
+                escaped = false;
+            } else if (c == '\\') {
+                escaped = true;
+            } else if (c == '"') {
+                break;
+            } else {
+                out.append(c);
+            }
+        }
+        return out.toString();
     }
 
     private boolean extractBoolField(String json, String fieldName) {
-        Pattern p = Pattern.compile("\"" + Pattern.quote(fieldName) + "\"\s*:\s*\{\s*\"booleanValue\"\s*:\s*(true|false)");
-        Matcher m = p.matcher(json);
-        return m.find() && "true".equalsIgnoreCase(m.group(1));
+        String key = "\"" + fieldName + "\"";
+        int keyIdx = json.indexOf(key);
+        if (keyIdx < 0) return false;
+        int boolKeyIdx = json.indexOf("\"booleanValue\"", keyIdx + key.length());
+        if (boolKeyIdx < 0) return false;
+        String tail = json.substring(boolKeyIdx, Math.min(json.length(), boolKeyIdx + 40));
+        return tail.contains("true");
     }
 
     private void checkIncomingCall(String targetNum) {
         String endpoint = "https://firestore.googleapis.com/v1/projects/" + PROJECT_ID +
                 "/databases/(default)/documents/calls/" + targetNum;
         String body = httpGet(endpoint);
-        if (body.isEmpty() || !body.contains(""fields"")) return;
+        if (body.isEmpty()) return;
+        if (!body.contains("\"fields\"")) return;
 
         String status = extractStringField(body, "status");
         String callerName = extractStringField(body, "callerName");
@@ -271,15 +298,22 @@ public class GemixBackgroundService extends Service {
         String endpoint = "https://firestore.googleapis.com/v1/projects/" + PROJECT_ID +
                 "/databases/(default)/documents/chats";
         String body = httpGet(endpoint);
-        if (body.isEmpty() || !body.contains(""documents"")) return;
+        if (body.isEmpty()) return;
+        if (!body.contains("\"documents\"")) return;
 
-        Pattern docNamePattern = Pattern.compile("\"name\"\s*:\s*\"projects/" +
-                Pattern.quote(PROJECT_ID) + "/databases/\(default\)/documents/chats/([^\"]+)\"");
-        Matcher m = docNamePattern.matcher(body);
-        while (m.find()) {
-            String chatId = m.group(1);
-            if (!chatId.contains(myNum)) continue;
-            checkChatMessages(chatId, myNum);
+        String marker = "/documents/chats/";
+        int pos = 0;
+        while (pos < body.length()) {
+            int idx = body.indexOf(marker, pos);
+            if (idx < 0) break;
+            int start = idx + marker.length();
+            int endQuote = body.indexOf("\"", start);
+            if (endQuote < 0) break;
+            String chatId = body.substring(start, endQuote);
+            pos = endQuote + 1;
+            if (!chatId.contains("/") && chatId.contains(myNum)) {
+                checkChatMessages(chatId, myNum);
+            }
         }
     }
 
@@ -289,13 +323,29 @@ public class GemixBackgroundService extends Service {
         String msgsBody = httpGet(msgsUrl);
         if (msgsBody.isEmpty()) return;
 
-        Pattern docPattern = Pattern.compile("\"name\"\s*:\s*\"[^\"]+/messages/([^\"]+)\"([\s\S]*?)(?=\"name\"\s*:\s*\"[^\"]+/messages/|$)");
-        Matcher dm = docPattern.matcher(msgsBody);
-        Set<String> currentIds = new HashSet<>();
+        String msgMarker = "/messages/";
+        List<Integer> docStarts = new ArrayList<>();
+        int searchFrom = 0;
+        while (searchFrom < msgsBody.length()) {
+            int mIdx = msgsBody.indexOf(msgMarker, searchFrom);
+            if (mIdx < 0) break;
+            int idStart = mIdx + msgMarker.length();
+            int idEnd = msgsBody.indexOf("\"", idStart);
+            if (idEnd < 0) break;
+            docStarts.add(mIdx);
+            searchFrom = idEnd + 1;
+        }
 
-        while (dm.find()) {
-            String msgId = dm.group(1);
-            String chunk = dm.group(2);
+        Set<String> currentIds = new HashSet<>();
+        for (int i = 0; i < docStarts.size(); i++) {
+            int startIdx = docStarts.get(i);
+            int endIdx = (i + 1 < docStarts.size()) ? docStarts.get(i + 1) : msgsBody.length();
+            String chunk = msgsBody.substring(startIdx, endIdx);
+
+            int idStart = startIdx + msgMarker.length();
+            int idEnd = msgsBody.indexOf("\"", idStart);
+            if (idEnd < 0) continue;
+            String msgId = msgsBody.substring(idStart, idEnd);
             currentIds.add(msgId);
 
             String senderNum = extractStringField(chunk, "senderGemixNum");
